@@ -555,3 +555,168 @@
     <script src="/simuser/js/simuser-dashboard.js"></script>
 </body>
 </html>
+
+
+<script>
+// FORCE FIX: Loading Overlay Stuck Issue
+(function() {
+    console.log('Force Fix Loading: Starting...');
+    
+    // Function to completely hide loading
+    function forceHideLoading() {
+        // ค้นหา loading overlay ทุกวิธี
+        const selectors = [
+            '#loadingOverlay',
+            '.loading-overlay',
+            '[class*="loading"]',
+            'div[id*="loading"]'
+        ];
+        
+        selectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                // ลบ class ทั้งหมดที่เกี่ยวกับ show
+                el.classList.remove('show', 'showing', 'active', 'visible');
+                
+                // Force inline styles
+                el.style.display = 'none !important';
+                el.style.visibility = 'hidden !important';
+                el.style.opacity = '0 !important';
+                el.style.position = 'fixed !important';
+                el.style.zIndex = '-9999 !important';
+                el.style.pointerEvents = 'none !important';
+                
+                // ป้องกันไม่ให้ element นี้แสดงอีก
+                el.style.setProperty('display', 'none', 'important');
+                el.style.setProperty('visibility', 'hidden', 'important');
+                el.style.setProperty('opacity', '0', 'important');
+                
+                console.log('Force Fix Loading: Hidden element', el);
+            });
+        });
+        
+        // Reset body styles
+        document.body.style.overflow = '';
+        document.body.style.position = '';
+        
+        // Remove any style tags that might override
+        const styleTags = document.querySelectorAll('style');
+        styleTags.forEach(style => {
+            if (style.innerHTML.includes('loading-overlay') && style.innerHTML.includes('show')) {
+                style.remove();
+                console.log('Force Fix Loading: Removed problematic style tag');
+            }
+        });
+    }
+    
+    // Strategy 1: รอให้ DOM พร้อมแล้วซ่อนทันที
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('Force Fix Loading: DOM ready, hiding in 100ms');
+            setTimeout(forceHideLoading, 100);
+        });
+    } else {
+        // DOM พร้อมแล้ว
+        setTimeout(forceHideLoading, 100);
+    }
+    
+    // Strategy 2: รอให้ dashboard โหลดเสร็จ
+    let checkInterval = setInterval(function() {
+        if (window.dashboard || document.querySelector('.dashboard-container')) {
+            console.log('Force Fix Loading: Dashboard detected, hiding loading');
+            forceHideLoading();
+            clearInterval(checkInterval);
+        }
+    }, 200);
+    
+    // Strategy 3: Timeout สูงสุด 3 วินาที
+    setTimeout(function() {
+        console.log('Force Fix Loading: Max timeout reached, force hiding');
+        clearInterval(checkInterval);
+        forceHideLoading();
+    }, 3000);
+    
+    // Strategy 4: Override all show/hide functions
+    window.addEventListener('load', function() {
+        // Override showLoading ไม่ให้ทำงาน
+        if (window.SimUser && window.SimUser.ui) {
+            window.SimUser.ui.showLoading = function(msg) {
+                console.log('Force Fix Loading: Blocked showLoading call:', msg);
+                // ไม่ทำอะไร
+            };
+            
+            window.SimUser.ui.hideLoading = function() {
+                console.log('Force Fix Loading: hideLoading called, force hiding');
+                forceHideLoading();
+            };
+        }
+        
+        // ซ่อนทันทีอีกครั้ง
+        forceHideLoading();
+    });
+    
+    // Strategy 5: MutationObserver เพื่อดักจับการเปลี่ยนแปลง
+    if (window.MutationObserver) {
+        const observer = new MutationObserver(function(mutations) {
+            mutations.forEach(function(mutation) {
+                if (mutation.type === 'attributes') {
+                    const target = mutation.target;
+                    if (target.id === 'loadingOverlay' || target.classList.contains('loading-overlay')) {
+                        if (target.classList.contains('show') || 
+                            target.style.display !== 'none' ||
+                            target.style.visibility !== 'hidden') {
+                            console.log('Force Fix Loading: Detected loading trying to show, blocking');
+                            forceHideLoading();
+                        }
+                    }
+                }
+            });
+        });
+        
+        // เริ่ม observe หลังจาก DOM ready
+        setTimeout(function() {
+            const loadingEl = document.getElementById('loadingOverlay');
+            if (loadingEl) {
+                observer.observe(loadingEl, {
+                    attributes: true,
+                    attributeFilter: ['class', 'style']
+                });
+            }
+        }, 500);
+    }
+    
+    // Expose global function for manual trigger
+    window.forceHideLoading = forceHideLoading;
+    
+    console.log('Force Fix Loading: All strategies deployed');
+})();
+</script>
+
+<!-- CSS Override สุดท้าย -->
+<style>
+/* CRITICAL: Force hide loading overlay */
+#loadingOverlay,
+.loading-overlay,
+[class*="loading-overlay"] {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    z-index: -9999 !important;
+}
+
+/* ป้องกันไม่ให้แสดงแม้จะมี class show */
+#loadingOverlay.show,
+.loading-overlay.show {
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+}
+
+/* Remove all transitions for loading */
+#loadingOverlay,
+.loading-overlay {
+    transition: none !important;
+    animation: none !important;
+}
+</style>
