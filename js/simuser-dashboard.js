@@ -1,4 +1,4 @@
-// dashboard.js - Main Dashboard Script (IIFE Version)
+// dashboard.js - Main Dashboard Script (IIFE Version) - FIXED VERSION
 
 (function(global) {
   'use strict';
@@ -22,6 +22,8 @@
   function Dashboard() {
     this.proposalData = null;
     this.currentStatus = null;
+    this.loadAttempts = 0;
+    this.maxLoadAttempts = 3;
   }
 
   /**
@@ -29,6 +31,8 @@
    */
   Dashboard.prototype.initialize = function() {
     const self = this;
+    
+    console.log('Dashboard: Starting initialization...');
     
     // Show loading
     ui.showLoading('กำลังโหลดข้อมูล...');
@@ -39,6 +43,8 @@
     // Check authentication
     auth.initialize()
       .then(function(isAuthenticated) {
+        console.log('Dashboard: Auth check result:', isAuthenticated);
+        
         if (!isAuthenticated) {
           window.location.href = ROUTES.LOGIN;
           return Promise.reject('Not authenticated');
@@ -50,8 +56,20 @@
           return Promise.reject('User is admin');
         }
         
+        // Log user data for debugging
+        const userData = auth.getUserData();
+        console.log('Dashboard: User data:', userData);
+        
         // Check if user has proposal
-        if (!auth.hasProposal()) {
+        const hasProposal = auth.hasProposal();
+        console.log('Dashboard: hasProposal check:', hasProposal);
+        
+        // ถ้า hasProposal return null หมายความว่าไม่มี cached data
+        // ให้ไปเรียก API เพื่อตรวจสอบ
+        if (hasProposal === null) {
+          console.log('Dashboard: No cached proposal, will check via API');
+          // Continue to load proposal data
+        } else if (hasProposal === false) {
           ui.showAlert(
             'ไม่พบข้อเสนอโครงการ',
             'กรุณาส่งข้อเสนอโครงการก่อน',
@@ -67,6 +85,8 @@
         return self.loadProposalData();
       })
       .then(function() {
+        console.log('Dashboard: Data loaded successfully');
+        
         // Initialize components
         self.initializeComponents();
         
@@ -75,46 +95,134 @@
         
         // Hide loading
         ui.hideLoading();
+        console.log('Dashboard: Initialization complete');
       })
       .catch(function(error) {
+        console.error('Dashboard: Initialization error:', error);
+        
         if (error && typeof error === 'string' && 
             (error === 'Not authenticated' || error === 'User is admin' || error === 'No proposal')) {
           // Expected redirects, don't show error
           return;
         }
-        console.error('Dashboard initialization error:', error);
+        
+        if (error && error.message === 'No proposal found') {
+          // Already handled in loadProposalData
+          return;
+        }
+        
+        // Show error and hide loading
         ui.showAlert('เกิดข้อผิดพลาด', error.message || 'ไม่สามารถโหลดข้อมูลได้', 'danger');
         ui.hideLoading();
+        
+        // Add retry button
+        self.showRetryButton();
       });
   };
 
   /**
-   * Load proposal data
+   * Load proposal data with retry mechanism
    */
   Dashboard.prototype.loadProposalData = function() {
     const self = this;
+    self.loadAttempts++;
+    
+    console.log('Dashboard: Loading proposal data (attempt ' + self.loadAttempts + ')...');
     
     return api.getProposalData()
       .then(function(response) {
+        console.log('Dashboard: API response received:', response);
+        
+        if (!response) {
+          throw new Error('ไม่ได้รับข้อมูลจาก server');
+        }
+        
         if (!response.success) {
           throw new Error(response.message || 'ไม่สามารถดึงข้อมูลโครงการได้');
+        }
+        
+        // Validate response structure
+        if (!response.proposal) {
+          throw new Error('ข้อมูลโครงการไม่ถูกต้อง');
         }
         
         self.proposalData = response;
         self.currentStatus = response.proposal.status;
         
+        // Cache proposal data
+        localStorage.setItem('proposalData', JSON.stringify(response));
+        
+        console.log('Dashboard: Current status:', self.currentStatus);
+        
         // Update UI with proposal data
         self.updateProposalInfo();
         self.updateDashboardStats();
         
-        // Update components
-        status.updateStatusTracker(self.currentStatus);
-        timeline.renderTimeline(response.statusHistory);
-        notifications.renderNotifications(response.notifications);
-        documents.initialize(response);
+        // Update components with error handling
+        try {
+          status.updateStatusTracker(self.currentStatus);
+        } catch (e) {
+          console.error('Dashboard: Error updating status tracker:', e);
+        }
+        
+        try {
+          timeline.renderTimeline(response.statusHistory);
+        } catch (e) {
+          console.error('Dashboard: Error rendering timeline:', e);
+        }
+        
+        try {
+          notifications.renderNotifications(response.notifications);
+        } catch (e) {
+          console.error('Dashboard: Error rendering notifications:', e);
+        }
+        
+        try {
+          documents.initialize(response);
+        } catch (e) {
+          console.error('Dashboard: Error initializing documents:', e);
+        }
         
         // Toggle sections based on status
-        status.toggleSectionsByStatus(self.currentStatus, response);
+        try {
+          status.toggleSectionsByStatus(self.currentStatus, response);
+        } catch (e) {
+          console.error('Dashboard: Error toggling sections:', e);
+        }
+        
+        // Reset load attempts on success
+        self.loadAttempts = 0;
+      })
+      .catch(function(error) {
+        console.error('Dashboard: Error loading proposal data:', error);
+        
+        // ถ้าเป็น 404 หรือไม่พบข้อมูล proposal
+        if (error.message && error.message.includes('ไม่พบข้อมูลโครงการ')) {
+          ui.showAlert(
+            'ไม่พบข้อเสนอโครงการ',
+            'กรุณาส่งข้อเสนอโครงการก่อน',
+            'warning'
+          );
+          setTimeout(function() {
+            window.location.href = ROUTES.SUBMIT;
+          }, 2000);
+          throw new Error('No proposal found');
+        }
+        
+        // Retry if attempts remaining
+        if (self.loadAttempts < self.maxLoadAttempts) {
+          console.log('Dashboard: Retrying in 2 seconds...');
+          return new Promise(function(resolve, reject) {
+            setTimeout(function() {
+              self.loadProposalData()
+                .then(resolve)
+                .catch(reject);
+            }, 2000);
+          });
+        }
+        
+        // Max attempts reached, throw error
+        throw error;
       });
   };
 
@@ -122,15 +230,21 @@
    * Initialize components
    */
   Dashboard.prototype.initializeComponents = function() {
-    // Initialize timeline
-    timeline.initialize();
+    console.log('Dashboard: Initializing components...');
     
-    // Initialize notifications
-    notifications.initialize();
-    
-    // Initialize file upload if status is preparing
-    if (status.canUploadPresentation(this.currentStatus)) {
-      this.initializeFileUpload();
+    try {
+      // Initialize timeline
+      timeline.initialize();
+      
+      // Initialize notifications
+      notifications.initialize();
+      
+      // Initialize file upload if status is preparing
+      if (status.canUploadPresentation(this.currentStatus)) {
+        this.initializeFileUpload();
+      }
+    } catch (error) {
+      console.error('Dashboard: Error initializing components:', error);
     }
   };
 
@@ -138,57 +252,69 @@
    * Initialize file upload
    */
   Dashboard.prototype.initializeFileUpload = function() {
-    upload.initializeUpload('presentationFile', {
-      type: 'presentation',
-      allowedExtensions: UPLOAD.ALLOWED_EXTENSIONS.PRESENTATION,
-      allowedMimeTypes: UPLOAD.ALLOWED_MIME_TYPES.PRESENTATION,
-      container: 'presentationContainer',
-      onSelect: function(file) {
-        const submitBtn = document.getElementById('submitPresentation');
-        if (submitBtn) {
-          submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ส่งเอกสารนำเสนอ (' + file.name + ')';
+    try {
+      upload.initializeUpload('presentationFile', {
+        type: 'presentation',
+        allowedExtensions: UPLOAD.ALLOWED_EXTENSIONS.PRESENTATION,
+        allowedMimeTypes: UPLOAD.ALLOWED_MIME_TYPES.PRESENTATION,
+        container: 'presentationContainer',
+        onSelect: function(file) {
+          const submitBtn = document.getElementById('submitPresentation');
+          if (submitBtn) {
+            submitBtn.innerHTML = '<i class="fas fa-paper-plane"></i> ส่งเอกสารนำเสนอ (' + file.name + ')';
+          }
         }
-      }
-    });
+      });
+    } catch (error) {
+      console.error('Dashboard: Error initializing file upload:', error);
+    }
   };
 
   /**
    * Update proposal information
    */
   Dashboard.prototype.updateProposalInfo = function() {
-    const proposal = this.proposalData.proposal;
-    
-    // Update basic info
-    this.updateElementText('referenceNumber', proposal.proposals_id);
-    this.updateElementText('projectTitle', proposal.project_title);
-    this.updateElementText('innovationType', proposal.innovation_type);
-    this.updateElementText('projectProvince', proposal.province);
-    this.updateElementText('requestedBudget', 
-      proposal.budget_requested ? utils.formatCurrency(proposal.budget_requested, false) : '-'
-    );
-    this.updateElementText('beneficiaries', 
-      proposal.beneficiaries ? utils.formatNumber(proposal.beneficiaries) + ' คน' : '-'
-    );
+    try {
+      const proposal = this.proposalData.proposal;
+      
+      // Update basic info
+      this.updateElementText('referenceNumber', proposal.proposals_id);
+      this.updateElementText('projectTitle', proposal.project_title);
+      this.updateElementText('innovationType', proposal.innovation_type);
+      this.updateElementText('projectProvince', proposal.province);
+      this.updateElementText('requestedBudget', 
+        proposal.budget_requested ? utils.formatCurrency(proposal.budget_requested, false) : '-'
+      );
+      this.updateElementText('beneficiaries', 
+        proposal.beneficiaries ? utils.formatNumber(proposal.beneficiaries) + ' คน' : '-'
+      );
+    } catch (error) {
+      console.error('Dashboard: Error updating proposal info:', error);
+    }
   };
 
   /**
    * Update dashboard statistics
    */
   Dashboard.prototype.updateDashboardStats = function() {
-    const proposal = this.proposalData.proposal;
-    
-    // Update submission date
-    const submissionDate = proposal.created_at ? new Date(proposal.created_at) : null;
-    this.updateElementText('submissionDate', 
-      submissionDate ? utils.formatDate(submissionDate) : '-'
-    );
-    
-    // Update project duration
-    const duration = utils.calculateDuration(submissionDate);
-    this.updateElementText('projectDuration', duration);
-    
-    // Update next step
-    this.updateNextStep();
+    try {
+      const proposal = this.proposalData.proposal;
+      
+      // Update submission date
+      const submissionDate = proposal.created_at ? new Date(proposal.created_at) : null;
+      this.updateElementText('submissionDate', 
+        submissionDate ? utils.formatDate(submissionDate) : '-'
+      );
+      
+      // Update project duration
+      const duration = utils.calculateDuration(submissionDate);
+      this.updateElementText('projectDuration', duration);
+      
+      // Update next step
+      this.updateNextStep();
+    } catch (error) {
+      console.error('Dashboard: Error updating dashboard stats:', error);
+    }
   };
 
   /**
@@ -336,6 +462,24 @@
   };
 
   /**
+   * Show retry button when loading fails
+   */
+  Dashboard.prototype.showRetryButton = function() {
+    const container = document.getElementById('currentStatusCard');
+    if (container) {
+      container.innerHTML = '\
+        <div class="text-center">\
+          <h5 class="text-danger"><i class="fas fa-exclamation-circle"></i> เกิดข้อผิดพลาด</h5>\
+          <p>ไม่สามารถโหลดข้อมูลได้ กรุณาลองใหม่อีกครั้ง</p>\
+          <button class="btn btn-primary" onclick="window.location.reload()">\
+            <i class="fas fa-redo"></i> โหลดใหม่\
+          </button>\
+        </div>\
+      ';
+    }
+  };
+
+  /**
    * Refresh dashboard data
    */
   Dashboard.prototype.refresh = function() {
@@ -357,6 +501,7 @@
 
   // Initialize dashboard when DOM is ready
   document.addEventListener('DOMContentLoaded', function() {
+    console.log('Dashboard: DOM loaded, initializing...');
     const dashboard = new Dashboard();
     dashboard.initialize();
     
