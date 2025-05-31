@@ -1,4 +1,4 @@
-// auth.js - Authentication Module (IIFE Version)
+// auth.js - Authentication Module (IIFE Version) - FIXED
 
 (function(global) {
   'use strict';
@@ -13,6 +13,7 @@
     this.token = null;
     this.userData = null;
     this.tokenCheckInterval = null;
+    this.proposalData = null; // เพิ่มเก็บข้อมูล proposal
   }
 
   /**
@@ -151,8 +152,10 @@
   AuthManager.prototype.clearAuth = function() {
     this.token = null;
     this.userData = null;
+    this.proposalData = null;
     localStorage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER_DATA);
+    localStorage.removeItem('proposalData'); // Clear cached proposal data
     this.stopTokenCheck();
   };
 
@@ -193,9 +196,26 @@
 
   /**
    * Check if user has proposal
+   * แก้ไขให้ตรวจสอบจาก API แทนการดูจาก userData
    */
   AuthManager.prototype.hasProposal = function() {
-    return this.userData && this.userData.proposals;
+    // ถ้ามี cached proposal data ให้ return true
+    const cachedProposal = localStorage.getItem('proposalData');
+    if (cachedProposal) {
+      try {
+        const data = JSON.parse(cachedProposal);
+        if (data && data.proposal) {
+          console.log('Auth: Found cached proposal data');
+          return true;
+        }
+      } catch (e) {
+        console.error('Error parsing cached proposal:', e);
+      }
+    }
+    
+    // ถ้าไม่มี cached data ให้ return null เพื่อให้ dashboard ไปเรียก API เอง
+    console.log('Auth: No cached proposal data, will check via API');
+    return null;
   };
 
   /**
