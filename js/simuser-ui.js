@@ -45,11 +45,25 @@
   /**
    * Hide loading overlay
    */
-  UIManager.prototype.hideLoading = function() {
+UIManager.prototype.hideLoading = function() {
     if (this.loadingOverlay) {
       this.loadingOverlay.classList.remove('show');
+      
+      // Force immediate style update to trigger CSS transition
+      // This ensures the browser recognizes the class change
+      void this.loadingOverlay.offsetHeight;
+      
+      // Alternative: explicitly set styles after removing class
+      // This ensures compatibility even if CSS doesn't apply correctly
+      const self = this;
+      setTimeout(function() {
+        if (self.loadingOverlay && !self.loadingOverlay.classList.contains('show')) {
+          self.loadingOverlay.style.visibility = 'hidden';
+          self.loadingOverlay.style.opacity = '0';
+        }
+      }, 10);
     }
-  };
+};
 
   /**
    * Create loading overlay if not exists
