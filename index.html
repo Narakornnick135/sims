@@ -1,0 +1,557 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="csrf-token" content="koEKG0V2TC0WyFDowvdH3mLzFBpr6rlXFm0C16we">
+    
+    <title>Dashboard - SIMS-CMRU</title>
+    
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Font Awesome -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <!-- Google Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Prompt:wght@300;400;500;700&family=Sarabun:wght@300;400;500;700&display=swap" rel="stylesheet">
+    
+    <!-- App CSS -->
+    <!-- <link href="/simuser/css/main.css" rel="stylesheet">
+    <link href="/simuser/css/dashboard.css" rel="stylesheet">
+    <link href="/simuser/css/components.css" rel="stylesheet"> -->
+    <link href="https://adicet.cmru.ac.th/sim/dashboard.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Loading Overlay (จะถูกสร้างโดย ui.js ถ้าไม่มี) -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner-container">
+            <div class="spinner-border text-warning loading-spinner" role="status">
+                <span class="visually-hidden">กำลังโหลด...</span>
+            </div>
+            <div class="loading-message mt-3">กำลังโหลด...</div>
+        </div>
+    </div>
+
+    <!-- Alert Box (จะถูกสร้างโดย ui.js ถ้าไม่มี) -->
+    <div id="alertBox" class="alert-box">
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <strong id="alertTitle">สำเร็จ!</strong> 
+            <span id="alertMessage">บันทึกข้อมูลเรียบร้อยแล้ว</span>
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+    </div>
+
+    <!-- Toast Container (จะถูกสร้างโดย ui.js เมื่อต้องการ) -->
+
+    <!-- Decoration Elements -->
+    <div class="cloud-shape cloud-1"></div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-white">
+        <div class="container">
+            <a class="navbar-brand" href="/simuser/">
+                <img src="/sim/logo-sim.png" alt="logo-SIMs" class="school-logo">
+                <div>
+                    <span class="fs-5 fw-bold">ระบบจัดการโครงการนวัตกรรมเพื่อสังคม</span><br>
+                    <small>Social Innovation Management System</small>
+                </div>
+            </a>
+            
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link active" href="/simuser/"><i class="fas fa-home me-1"></i> หน้าหลัก</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="/simuser/contact"><i class="fas fa-envelope me-1"></i> ติดต่อ SID-CMRU</a>
+                    </li>
+                    <li class="nav-item" id="loginMenuItem">
+                        <a class="btn btn-login" href="/sims/login"><i class="fas fa-sign-in-alt me-1"></i> เข้าสู่ระบบ</a>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- Page Header -->
+    <div class="page-header">
+        <div class="container">
+            <h1 class="page-title">โครงการนวัตกรรมเพื่อสังคม</h1>
+            <p class="page-subtitle">สถานะโครงการของคุณ</p>
+            <div class="d-flex justify-content-center flex-wrap mt-4">
+                <div class="stats-badge">
+                    <i class="fas fa-calendar-alt"></i> วันที่ยื่น: <span id="submissionDate">-</span>
+                </div>
+                <div class="stats-badge">
+                    <i class="fas fa-history"></i> ระยะเวลาดำเนินการ: <span id="projectDuration">-</span>
+                </div>
+                <div id="nextStepBadge" class="stats-badge badge-glow">
+                    <i class="fas fa-tasks"></i> ขั้นตอนถัดไป: <span id="nextStep">-</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+    <div class="container dashboard-container">
+        <div class="row">
+            <!-- Left Column: Status and Timeline -->
+            <div class="col-lg-8">
+                <!-- Status Tracker -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h2 class="dashboard-card-title"><i class="fas fa-chart-line"></i> สถานะโครงการ</h2>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <!-- Status Tracker -->
+                        <div class="status-tracker">
+                            <div class="status-line"></div>
+                            <div class="status-progress" id="statusProgressBar"></div>
+                            <div class="status-items">
+                                <div class="status-item" data-status="waiting">
+                                    <div class="status-icon">
+                                        <i class="fas fa-hourglass-half"></i>
+                                    </div>
+                                    <div class="status-text">รอการตรวจรับ</div>
+                                </div>
+                                <div class="status-item" data-status="reviewing">
+                                    <div class="status-icon">
+                                        <i class="fas fa-clipboard-check"></i>
+                                    </div>
+                                    <div class="status-text">เจ้าหน้าที่ตรวจรับแล้ว</div>
+                                </div>
+                                <div class="status-item" data-status="preparing">
+                                    <div class="status-icon">
+                                        <i class="fas fa-laptop-code"></i>
+                                    </div>
+                                    <div class="status-text">เตรียมข้อมูลนำเสนอ</div>
+                                </div>
+                                <div class="status-item" data-status="approved">
+                                    <div class="status-icon">
+                                        <i class="fas fa-check-circle"></i>
+                                    </div>
+                                    <div class="status-text">อนุมัติโครงการ</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Current Status Card -->
+                        <div id="currentStatusCard" class="current-status-card status-waiting">
+                            <h5 class="status-title" id="statusTitle">
+                                <i class="fas fa-hourglass-half"></i> กำลังโหลดข้อมูล...
+                            </h5>
+                            <p class="status-description" id="statusDescription">
+                                กรุณารอสักครู่ ระบบกำลังโหลดข้อมูลสถานะโครงการของคุณ
+                            </p>
+                        </div>
+
+                        <!-- Action Buttons -->
+                        <div class="action-buttons" id="actionButtonsContainer">
+                            <!-- Buttons will be added dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Timeline Section -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h2 class="dashboard-card-title"><i class="fas fa-history"></i> ประวัติการดำเนินการ</h2>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <div class="timeline" id="projectTimeline">
+                            <!-- Timeline items will be added dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Notifications -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h2 class="dashboard-card-title">
+                            <i class="fas fa-bell"></i> การแจ้งเตือน
+                            <span class="badge bg-danger" id="notificationBadge" style="display: none;">0</span>
+                        </h2>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <div class="notification-scroll" id="notificationsContainer">
+                            <!-- Notifications will be added dynamically -->
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Section (visible only when status is preparing) -->
+                <div class="dashboard-card" id="uploadSection" style="display: none;">
+                    <div class="dashboard-card-header">
+                        <h2 class="dashboard-card-title"><i class="fas fa-upload"></i> อัปโหลดเอกสารนำเสนอ</h2>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <p class="mb-3">กรุณาอัปโหลดเอกสารหรือสไลด์สำหรับการนำเสนอโครงการตามแบบฟอร์มที่กำหนด</p>
+                        
+                        <div class="file-upload-section">
+                            <div class="file-upload-container" id="presentationContainer">
+                                <div class="file-upload-content">
+                                    <div class="file-upload-icon">
+                                        <i class="fas fa-file-powerpoint"></i>
+                                    </div>
+                                    <div class="file-upload-text">คลิกหรือลากไฟล์มาวางที่นี่</div>
+                                    <div class="file-format-info">รองรับไฟล์ .ppt, .pptx, .pdf ขนาดไม่เกิน 15MB</div>
+                                </div>
+                                <input type="file" id="presentationFile" class="file-input" accept=".ppt,.pptx,.pdf">
+                                <div class="upload-progress" id="presentationProgress" style="display: none;">
+                                    <div class="upload-progress-bar"></div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="button" id="submitPresentation" class="btn btn-action btn-info mt-3">
+                            <i class="fas fa-paper-plane"></i> ส่งเอกสารนำเสนอ
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Feedback Section (visible only when status is rejected) -->
+                <div class="dashboard-card" id="feedbackSection" style="display: none;">
+                    <div class="dashboard-card-header">
+                        <h2 class="dashboard-card-title"><i class="fas fa-comment-alt"></i> ข้อเสนอแนะจากคณะกรรมการ</h2>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <div class="alert alert-danger">
+                            <i class="fas fa-exclamation-circle me-2"></i>
+                            <span>โครงการของคุณไม่ผ่านการอนุมัติ กรุณาอ่านข้อเสนอแนะด้านล่าง</span>
+                        </div>
+                        <div class="feedback-content" id="feedbackContent">
+                            <!-- Feedback content will be added dynamically -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column: Project Details and Files -->
+            <div class="col-lg-4">
+                <!-- Project Details -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h2 class="dashboard-card-title"><i class="fas fa-info-circle"></i> ข้อมูลโครงการ</h2>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <dl class="project-details">
+                            <dt>หมายเลขอ้างอิง</dt>
+                            <dd><span class="reference-number" id="referenceNumber">-</span></dd>
+                            
+                            <dt>ชื่อโครงการ</dt>
+                            <dd id="projectTitle">-</dd>
+                            
+                            <dt>ประเภทนวัตกรรม</dt>
+                            <dd id="innovationType">-</dd>
+                            
+                            <dt>จังหวัดที่ดำเนินโครงการ</dt>
+                            <dd id="projectProvince">-</dd>
+                            
+                            <dt>งบประมาณที่ขอ</dt>
+                            <dd id="requestedBudget">-</dd>
+                            
+                            <dt>ผู้ได้รับประโยชน์</dt>
+                            <dd id="beneficiaries">-</dd>
+                        </dl>
+                    </div>
+                </div>
+
+                <!-- Documents Section -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h2 class="dashboard-card-title"><i class="fas fa-file-alt"></i> เอกสารโครงการ</h2>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <div class="document-list">
+                            <div class="document-item">
+                                <div class="document-icon text-primary">
+                                    <i class="fas fa-file-word"></i>
+                                </div>
+                                <div class="document-info">
+                                    <div class="document-title">ข้อเสนอโครงการ (Word)</div>
+                                    <div class="document-meta">อัปโหลดเมื่อ: <span id="wordUploadDate">-</span></div>
+                                </div>
+                                <div class="document-actions">
+                                    <button class="btn btn-sm btn-download btn-primary" id="downloadWordBtn" disabled>
+                                        <i class="fas fa-download"></i> ดาวน์โหลด
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="document-item">
+                                <div class="document-icon text-danger">
+                                    <i class="fas fa-file-pdf"></i>
+                                </div>
+                                <div class="document-info">
+                                    <div class="document-title">ข้อเสนอโครงการ (PDF)</div>
+                                    <div class="document-meta">อัปโหลดเมื่อ: <span id="pdfUploadDate">-</span></div>
+                                </div>
+                                <div class="document-actions">
+                                    <button class="btn btn-sm btn-download btn-danger" id="downloadPdfBtn" disabled>
+                                        <i class="fas fa-download"></i> ดาวน์โหลด
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="document-item">
+                                <div class="document-icon text-secondary">
+                                    <i class="fas fa-file-alt"></i>
+                                </div>
+                                <div class="document-info">
+                                    <div class="document-title">หลักฐานประกอบกิจการ</div>
+                                    <div class="document-meta">อัปโหลดเมื่อ: <span id="businessUploadDate">-</span></div>
+                                </div>
+                                <div class="document-actions">
+                                    <button class="btn btn-sm btn-download btn-secondary" id="downloadBusinessBtn" disabled>
+                                        <i class="fas fa-download"></i> ดาวน์โหลด
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="document-item">
+                                <div class="document-icon text-warning">
+                                    <i class="fas fa-file-powerpoint"></i>
+                                </div>
+                                <div class="document-info">
+                                    <div class="document-title">แบบฟอร์มนำเสนอโครงการ</div>
+                                    <div class="document-meta">แบบฟอร์มมาตรฐาน</div>
+                                </div>
+                                <div class="document-actions">
+                                    <button class="btn btn-sm btn-download btn-warning" id="downloadTemplateBtn">
+                                        <i class="fas fa-download"></i> ดาวน์โหลด
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Help Section -->
+                <div class="dashboard-card">
+                    <div class="dashboard-card-header">
+                        <h2 class="dashboard-card-title"><i class="fas fa-question-circle"></i> ต้องการความช่วยเหลือ?</h2>
+                    </div>
+                    <div class="dashboard-card-body">
+                        <div class="d-grid gap-2">
+                            <button type="button" class="btn btn-outline-primary" id="contactStaffBtn">
+                                <i class="fas fa-headset me-2"></i> ติดต่อเจ้าหน้าที่
+                            </button>
+                            <button type="button" class="btn btn-outline-primary" id="faqBtn">
+                                <i class="fas fa-book me-2"></i> คำถามที่พบบ่อย
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Contact Staff Modal -->
+    <div class="modal fade" id="contactStaffModal" tabindex="-1" aria-labelledby="contactStaffModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="contactStaffModalLabel">ติดต่อเจ้าหน้าที่</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="contactForm">
+                        <div class="mb-3">
+                            <label for="contactSubject" class="form-label">หัวข้อ</label>
+                            <input type="text" class="form-control" id="contactSubject" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="contactMessage" class="form-label">ข้อความ</label>
+                            <textarea class="form-control" id="contactMessage" rows="5" required></textarea>
+                        </div>
+                    </form>
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span>หรือติดต่อโดยตรงทาง:</span>
+                        <p class="mt-2 mb-0">
+                            อีเมล: sidcmru@g.cmru.ac.th<br>
+                            โทร: (+66) 65-0161100<br>
+                            เวลาทำการ: จันทร์-ศุกร์ 8:00-16:30 น.
+                        </p>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">ยกเลิก</button>
+                    <button type="button" class="btn btn-primary" id="sendContactBtn">
+                        <i class="fas fa-paper-plane me-2"></i> ส่งข้อความ
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- FAQ Modal -->
+    <div class="modal fade" id="faqModal" tabindex="-1" aria-labelledby="faqModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="faqModalLabel">คำถามที่พบบ่อย</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="accordion" id="faqAccordion">
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faqHeadingOne">
+                                <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapseOne" aria-expanded="true" aria-controls="faqCollapseOne">
+                                    ระยะเวลาในการพิจารณาโครงการเป็นเท่าไร?
+                                </button>
+                            </h2>
+                            <div id="faqCollapseOne" class="accordion-collapse collapse show" aria-labelledby="faqHeadingOne" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    โดยปกติจะใช้เวลาประมาณ 14-21 วันทำการในการพิจารณาโครงการ โดยแบ่งเป็นการตรวจรับและตรวจสอบเอกสารเบื้องต้น 7-10 วัน และการพิจารณาโดยคณะกรรมการอีก 7-10 วัน
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faqHeadingTwo">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapseTwo" aria-expanded="false" aria-controls="faqCollapseTwo">
+                                    หากโครงการไม่ผ่านการอนุมัติ สามารถยื่นใหม่ได้หรือไม่?
+                                </button>
+                            </h2>
+                            <div id="faqCollapseTwo" class="accordion-collapse collapse" aria-labelledby="faqHeadingTwo" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    สามารถยื่นใหม่ได้ โดยควรปรับปรุงตามข้อเสนอแนะจากคณะกรรมการ และต้องยื่นใหม่ภายในระยะเวลาที่กำหนด โดยสามารถคลิกที่ปุ่ม "ส่งข้อเสนอใหม่" เพื่อเริ่มกระบวนการยื่นข้อเสนอใหม่อีกครั้ง
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faqHeadingThree">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapseThree" aria-expanded="false" aria-controls="faqCollapseThree">
+                                    เมื่อไหร่จะได้รับแจ้งให้เตรียมข้อมูลสำหรับการนำเสนอ?
+                                </button>
+                            </h2>
+                            <div id="faqCollapseThree" class="accordion-collapse collapse" aria-labelledby="faqHeadingThree" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    เมื่อโครงการผ่านการตรวจรับและได้รับการคัดเลือกให้นำเสนอต่อคณะกรรมการ ท่านจะได้รับการแจ้งเตือนผ่านอีเมลและระบบแจ้งเตือนในแดชบอร์ด โดยปกติจะได้รับแจ้งภายใน 7-14 วันหลังจากยื่นข้อเสนอโครงการ
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faqHeadingFour">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapseFour" aria-expanded="false" aria-controls="faqCollapseFour">
+                                    หลังจากโครงการได้รับการอนุมัติแล้ว จะต้องดำเนินการอย่างไรต่อไป?
+                                </button>
+                            </h2>
+                            <div id="faqCollapseFour" class="accordion-collapse collapse" aria-labelledby="faqHeadingFour" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    หลังจากโครงการได้รับการอนุมัติ ท่านจะได้รับการติดต่อจากเจ้าหน้าที่เพื่อนัดหมายการทำสัญญาและการเบิกจ่ายงบประมาณ โดยควรเตรียมเอกสารประกอบตามที่ระบุในคู่มือการดำเนินโครงการ
+                                </div>
+                            </div>
+                        </div>
+                        <div class="accordion-item">
+                            <h2 class="accordion-header" id="faqHeadingFive">
+                                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faqCollapseFive" aria-expanded="false" aria-controls="faqCollapseFive">
+                                    สามารถแก้ไขข้อมูลในข้อเสนอโครงการหลังจากส่งแล้วได้หรือไม่?
+                                </button>
+                            </h2>
+                            <div id="faqCollapseFive" class="accordion-collapse collapse" aria-labelledby="faqHeadingFive" data-bs-parent="#faqAccordion">
+                                <div class="accordion-body">
+                                    ไม่สามารถแก้ไขข้อมูลในข้อเสนอโครงการหลังจากส่งแล้ว แต่หากมีข้อมูลที่จำเป็นต้องแก้ไขหรือเพิ่มเติม สามารถติดต่อเจ้าหน้าที่โดยตรงผ่านช่องทางการติดต่อในแดชบอร์ด หรืออีเมล sidcmru@g.cmru.ac.th
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-primary" data-bs-dismiss="modal">ปิด</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer mt-5">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-4 col-md-6 mb-4 mb-md-0">
+                    <h5>SID-CMRU</h5>
+                    <p>หน่วยขับเคลื่อนนวัตกรรมเพื่อสังคมประจำพื้นที่ภาคเหนือตอนบน 1<br>
+                    วิทยาลัยพัฒนาเศรษฐกิจและเทคโนโลยีชุมชนเอเชีย (adiCET)<br>
+                    มหาวิทยาลัยราชภัฏเชียงใหม่</p>
+                    <div class="social-icons">
+                        <a href="#" class="social-icon"><i class="fab fa-facebook-f"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-twitter"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-instagram"></i></a>
+                        <a href="#" class="social-icon"><i class="fab fa-line"></i></a>
+                    </div>
+                </div>
+                <div class="col-lg-2 col-md-6 mb-4 mb-md-0">
+                    <h5>เมนูหลัก</h5>
+                    <div class="footer-links">
+                        <a href="/simuser/"><i class="fas fa-home me-2"></i>หน้าหลัก</a>
+                        <a href="/simuser/about"><i class="fas fa-info-circle me-2"></i>เกี่ยวกับ SID-CMRU</a>
+                        <a href="/simuser/contact"><i class="fas fa-envelope me-2"></i>ติดต่อเรา</a>
+                    </div>
+                </div>
+                <div class="col-lg-3 col-md-6 mb-4 mb-md-0">
+                    <h5>ติดต่อเรา</h5>
+                    <p><i class="fas fa-map-marker-alt me-2"></i> 180 หมู่ 7 ถนนโชตนา<br>ตำบลขี้เหล็ก อำเภอแม่ริม<br>จังหวัดเชียงใหม่ 50180</p>
+                    <p><i class="fas fa-phone-alt me-2"></i> (+66) 65-0161100</p>
+                    <p><i class="fas fa-envelope me-2"></i> sidcmru@g.cmru.ac.th</p>
+                </div>
+                <div class="col-lg-3 col-md-6">
+                    <h5>รับข่าวสาร</h5>
+                    <p>ลงทะเบียนเพื่อรับข่าวสารและกิจกรรมใหม่ๆ จาก SID-CMRU</p>
+                    <div class="input-group mb-3">
+                        <input type="email" class="form-control" placeholder="อีเมล์ของคุณ" aria-label="Email" aria-describedby="button-addon2">
+                        <button class="btn btn-warning" type="button" id="button-addon2">สมัคร</button>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <div class="row">
+                    <div class="col-md-8">
+                        <p>&copy; 2568 SID-CMRU หน่วยขับเคลื่อนนวัตกรรมเพื่อสังคมประจำพื้นที่ภาคเหนือตอนบน 1. สงวนลิขสิทธิ์.</p>
+                    </div>
+                    <div class="col-md-4 text-md-end">
+                        <a href="#" class="text-white text-decoration-none me-3">นโยบายความเป็นส่วนตัว</a>
+                        <a href="#" class="text-white text-decoration-none">เงื่อนไขการใช้งาน</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <!-- 
+        Load JavaScript files in correct order (IIFE Pattern)
+        ไม่ต้องใช้ type="module" 
+        ทำงานได้ในทุก browser รวมทั้ง browser เก่า
+    -->
+    
+    <!-- Core configuration - โหลดก่อนเสมอ -->
+    <script src="/simuser/js/simuser-config.js"></script>
+    
+    <!-- Utility functions - ต้องโหลดก่อน modules อื่น -->
+    <script src="/simuser/js/simuser-utils.js"></script>
+    
+    <!-- Authentication - ต้องโหลดก่อน API -->
+    <script src="/simuser/js/simuser-auth.js"></script>
+    
+    <!-- API service - ต้องมี auth ก่อน -->
+    <script src="/simuser/js/simuser-api.js"></script>
+    
+    <!-- UI management -->
+    <script src="/simuser/js/simuser-ui.js"></script>
+    
+    <!-- Feature modules - โหลดหลัง core modules -->
+    <script src="/simuser/js/simuser-status.js"></script>
+    <script src="/simuser/js/simuser-timeline.js"></script>
+    <script src="/simuser/js/simuser-notifications.js"></script>
+    <script src="/simuser/js/simuser-documents.js"></script>
+    <script src="/simuser/js/simuser-upload.js"></script>
+    
+    <!-- Page specific script - โหลดสุดท้าย -->
+    <script src="/simuser/js/simuser-dashboard.js"></script>
+</body>
+</html>
