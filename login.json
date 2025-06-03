@@ -1,0 +1,1618 @@
+[
+    {
+        "id": "317633f77fe29fae",
+        "type": "tab",
+        "label": "Login/ส่งข้อเสนอ",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "login-http",
+        "type": "http in",
+        "z": "317633f77fe29fae",
+        "name": "Login Endpoint",
+        "url": "/api/auth/login",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 200,
+        "y": 240,
+        "wires": [
+            [
+                "validate-input"
+            ]
+        ]
+    },
+    {
+        "id": "validate-input",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Validate Input",
+        "func": "// ดึงข้อมูลจาก msg.payload\nconst user = msg.payload.username;\nconst pass = msg.payload.password;\nmsg.password = pass;\n// ตรวจสอบ\nif (!user || user === \"\" || !pass || pass === \"\") {\n    msg.statusCode = 400;\n    msg.payload = { success: false, message: \"Username/email and password are required\" };\n    return [null, msg];\n}\n\nconst isEmail = isValidEmail(user);\nmsg.payload = isEmail;\n\nif(isEmail == false){\n    msg.topic = \"SELECT * FROM users WHERE username = ?\";\n    msg.payload = [user];\n}else{\n    msg.topic = \"SELECT * FROM users WHERE email = ?\";\n    msg.payload = [user];\n}\n\nmsg.queryType = \"login\";\n\nfunction isValidEmail(email) {\n    if (!email || typeof email !== 'string') {\n        return false;\n    }\n    const emailRegex = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\n    return emailRegex.test(email);\n}\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 320,
+        "y": 320,
+        "wires": [
+            [
+                "mysql-query"
+            ],
+            [
+                "http-response"
+            ]
+        ]
+    },
+    {
+        "id": "mysql-query",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Query User",
+        "x": 570,
+        "y": 300,
+        "wires": [
+            [
+                "0b746101314f6764"
+            ]
+        ]
+    },
+    {
+        "id": "http-response",
+        "type": "http response",
+        "z": "317633f77fe29fae",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "x": 1400,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "0b746101314f6764",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Check",
+        "func": "// รับผลลัพธ์จาก MySQL\nconst result = msg.payload;\n\n// ตรวจสอบว่ามีผู้ใช้หรือไม่\nif (!result || (Array.isArray(result) && result.length === 0)) {\n    // ไม่พบผู้ใช้\n    msg.statusCode = 401; // Unauthorized\n    msg.payload = {\n        success: false,\n        message: \"ชื่อผู้ใช้ไม่ถูกต้อง\"\n    };\n    return [null, msg]; // ส่งไปยัง output ที่ 2 (error)\n}\n\n// ถ้ามีข้อมูลผู้ใช้ในรูปแบบ array\nif (Array.isArray(result)) {\n    // ดึงข้อมูลผู้ใช้ (เอาตัวแรก กรณีที่มีหลายคน)\n    var user = result[0];\n} else {\n    // กรณีที่ข้อมูลเป็น object เดี่ยว (ไม่ได้อยู่ใน array)\n    var user = result;\n}\nmsg.hash = user.password;\nconst jwtPayload = {\n    userId: user.id,\n    username: user.username,\n    email: user.email,\n    role: user.role || 'user',\n    iat: Math.floor(Date.now() / 1000)*1000\n};\nmsg.token = jwtPayload;\nreturn [msg, null]; // ส่งไปยัง output ที่ 1 (success)\n\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 810,
+        "y": 300,
+        "wires": [
+            [
+                "a395b4a584f69937"
+            ],
+            [
+                "http-response"
+            ]
+        ]
+    },
+    {
+        "id": "a395b4a584f69937",
+        "type": "bcrypt",
+        "z": "317633f77fe29fae",
+        "name": "",
+        "action": "verify",
+        "field": "password",
+        "hash": "hash",
+        "target": "payload",
+        "assignment": "replace",
+        "match": "match",
+        "outputs": 1,
+        "rounds": 10,
+        "x": 720,
+        "y": 400,
+        "wires": [
+            [
+                "0250e640fb994132"
+            ]
+        ]
+    },
+    {
+        "id": "0250e640fb994132",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "check2",
+        "func": "if (msg.match === false){\n    // รหัสผ่านไม่ถูกต้อง\n    msg.statusCode = 401; // Unauthorized\n    msg.payload = {\n        success: false,\n        message: \"รหัสผ่านไม่ถูกต้อง\"\n    };\n    return [null, msg]; // ส่งไปยัง output ที่ 2 (error)\n}\n\n// รหัสผ่านถูกต้อง\nmsg.statusCode = 200; // OK\nreturn [msg, null]; // ส่งไปยัง output ที่ 1 (success)",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 740,
+        "y": 460,
+        "wires": [
+            [
+                "cf73ce38f8c8b80b",
+                "dd6194de9611a316"
+            ],
+            [
+                "http-response",
+                "50e133eb603219e5"
+            ]
+        ]
+    },
+    {
+        "id": "cf73ce38f8c8b80b",
+        "type": "jwt sign",
+        "z": "317633f77fe29fae",
+        "name": "",
+        "alg": "HS256",
+        "exp": "86400",
+        "jwkurl": "",
+        "jwkkid": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 840,
+        "y": 600,
+        "wires": [
+            [
+                "9f2bd6c32f5dfd49"
+            ]
+        ]
+    },
+    {
+        "id": "d381122a651bc14f",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 5",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1100,
+        "y": 720,
+        "wires": []
+    },
+    {
+        "id": "2489d00df13998a0",
+        "type": "jwt verify",
+        "z": "317633f77fe29fae",
+        "name": "",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 550,
+        "y": 640,
+        "wires": [
+            [
+                "d381122a651bc14f",
+                "0828100cafc3d62e"
+            ]
+        ]
+    },
+    {
+        "id": "9f2bd6c32f5dfd49",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "log",
+        "func": "// ฟังก์ชันสำหรับดึง IP address จากหลาย header ที่เป็นไปได้\nfunction getClientIp(req) {\n    return req.headers['x-forwarded-for'] || \n           req.headers['x-real-ip'] || \n           req.connection.remoteAddress || \n           req.socket.remoteAddress || \n           req.ip ||\n           '0.0.0.0';\n}\n\n// สร้างข้อมูล log\nconst logData = {\n    user_id: msg.token.userId,\n    username: msg.token.username,\n    login_time: new Date(),\n    token: msg.payload,  // JWT token\n    ip_address: getClientIp(msg.req),\n    user_agent: msg.req.headers['user-agent'] || 'unknown',\n    status: 'active'\n};\n\n// เก็บข้อมูล log ไว้ใน msg เพื่อส่งต่อไปยังโนดอื่น (ถ้าต้องการ)\nmsg.logData = logData;\nmsg.hash = msg.payload;\n// สร้าง SQL query สำหรับบันทึก log\nmsg.topic = \"INSERT INTO login_logs (user_id, username, login_time, token, ip_address, user_agent, status) VALUES (?, ?, ?, ?, ?, ?, ?)\";\n\n// สร้าง parameters array สำหรับ MySQL node\nmsg.payload = [\n    logData.user_id,\n    logData.username,\n    logData.login_time,\n    logData.token,\n    logData.ip_address,\n    logData.user_agent,\n    logData.status\n];\n\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 930,
+        "y": 420,
+        "wires": [
+            [
+                "c481d8d2be772bf1"
+            ]
+        ]
+    },
+    {
+        "id": "c481d8d2be772bf1",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Query Log",
+        "x": 950,
+        "y": 480,
+        "wires": [
+            [
+                "49c2b7a4191fd962"
+            ]
+        ]
+    },
+    {
+        "id": "49c2b7a4191fd962",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "function 1",
+        "func": "msg.headers = {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': '*'\n};\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    message: \"เข้าสู่ระบบสำเร็จ\",\n    token: msg.hash, // ส่ง JWT token กลับไป\n    user: {\n        id: msg.token.userId,\n        username: msg.token.username,\n        email: msg.token.email,\n        role: msg.token.role\n    }\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1120,
+        "y": 500,
+        "wires": [
+            [
+                "http-response"
+            ]
+        ]
+    },
+    {
+        "id": "ff31752486f9c6ae",
+        "type": "http in",
+        "z": "317633f77fe29fae",
+        "name": "/api/auth/validate",
+        "url": "/api/auth/validate",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 80,
+        "y": 620,
+        "wires": [
+            [
+                "57869714a2b3a2cd",
+                "67111d262c0716b3"
+            ]
+        ]
+    },
+    {
+        "id": "57869714a2b3a2cd",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "User check",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg];\n}\n\n// แก้ไขส่วนที่มีการกำหนดค่าซ้ำซ้อน\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 310,
+        "y": 620,
+        "wires": [
+            [
+                "2489d00df13998a0"
+            ],
+            [
+                "49c9c11b7ffe4bfc"
+            ]
+        ]
+    },
+    {
+        "id": "49c9c11b7ffe4bfc",
+        "type": "http response",
+        "z": "317633f77fe29fae",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "x": 1520,
+        "y": 600,
+        "wires": []
+    },
+    {
+        "id": "dd6194de9611a316",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 2",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1100,
+        "y": 300,
+        "wires": []
+    },
+    {
+        "id": "0828100cafc3d62e",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Validate Input",
+        "func": " msg.topic = \"SELECT * FROM users WHERE id = ?\";\n msg.payload = [msg.payload.userId];\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 500,
+        "y": 740,
+        "wires": [
+            [
+                "c5119c621ee1c6c2"
+            ]
+        ]
+    },
+    {
+        "id": "c5119c621ee1c6c2",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Query User",
+        "x": 770,
+        "y": 740,
+        "wires": [
+            [
+                "5bde308a12de0604",
+                "6ffcf61ae8cfd169"
+            ]
+        ]
+    },
+    {
+        "id": "5bde308a12de0604",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 1",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 940,
+        "y": 740,
+        "wires": []
+    },
+    {
+        "id": "6ffcf61ae8cfd169",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Check",
+        "func": "// รับผลลัพธ์จาก MySQL\nconst result = msg.payload;\n\n// ตรวจสอบว่ามีผู้ใช้หรือไม่\nif (!result || (Array.isArray(result) && result.length === 0)) {\n    // ไม่พบผู้ใช้\n    msg.statusCode = 401; // Unauthorized\n    msg.payload = {\n        success: false,\n        message: \"ชื่อผู้ใช้ไม่ถูกต้อง\"\n    };\n    return [null, msg]; // ส่งไปยัง output ที่ 2 (error)\n}\n\n// ถ้ามีข้อมูลผู้ใช้ในรูปแบบ array\nif (Array.isArray(result)) {\n    // ดึงข้อมูลผู้ใช้ (เอาตัวแรก กรณีที่มีหลายคน)\n    var user = result[0];\n} else {\n    // กรณีที่ข้อมูลเป็น object เดี่ยว (ไม่ได้อยู่ใน array)\n    var user = result;\n}\n\nmsg.old = {\n    success: true,\n    message: \"Valid token\",\n    user: {\n            userId: user.id,\n            username: user.username,\n            email: user.email,\n            role: user.role || 'user',\n            proposals : false\n        }\n};\n\nmsg.topic = \"SELECT * FROM proposals WHERE user_id = ? ORDER BY created_at DESC LIMIT 1;\";\nmsg.payload = [user.id];\n\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': '*'\n};\nreturn [msg, null]; // ส่งไปยัง output ที่ 1 (success)\n\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 910,
+        "y": 820,
+        "wires": [
+            [
+                "479c63ca57b4b771"
+            ],
+            [
+                "49c9c11b7ffe4bfc"
+            ]
+        ]
+    },
+    {
+        "id": "61bda83ec5ae8b57",
+        "type": "http in",
+        "z": "317633f77fe29fae",
+        "name": "บันทึกข้อมูลชั่วคราว",
+        "url": "/api/proposals/temp",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 90,
+        "y": 880,
+        "wires": [
+            [
+                "df439c545816b4e3"
+            ]
+        ]
+    },
+    {
+        "id": "df439c545816b4e3",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ตรวจสอบ Token",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg];\n}\n\n// ดึง token จาก header\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 280,
+        "y": 880,
+        "wires": [
+            [
+                "0a29d56275d73f6b"
+            ],
+            [
+                "a07dadee9206bef3"
+            ]
+        ]
+    },
+    {
+        "id": "0a29d56275d73f6b",
+        "type": "jwt verify",
+        "z": "317633f77fe29fae",
+        "name": "",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 470,
+        "y": 880,
+        "wires": [
+            [
+                "b7e27af6d4d6c0e2"
+            ]
+        ]
+    },
+    {
+        "id": "b7e27af6d4d6c0e2",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ตรวจสอบข้อมูล",
+        "func": "// ดึงข้อมูลผู้ใช้จาก Token\nconst userId = msg.payload.userId;\n\n// ดึงข้อมูลจาก request\nconst tempData = msg.req.body;\nconst currentStep = tempData.currentStep || 1;\n\n// ตรวจสอบว่ามีข้อมูลหรือไม่\nif (!tempData || !tempData.formData) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"ข้อมูลไม่ถูกต้อง\"\n    };\n    return [null, msg];\n}\n\n// เตรียมข้อมูลสำหรับบันทึก\nmsg.topic = \"SELECT id FROM temp_proposals WHERE user_id = ?\";\nmsg.payload = [userId];\nmsg.userId = userId;\nmsg.tempData = {\n    formData: JSON.stringify(tempData.formData),\n    currentStep: currentStep\n};\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 670,
+        "y": 880,
+        "wires": [
+            [
+                "dd1f04b50df19959"
+            ],
+            [
+                "a07dadee9206bef3"
+            ]
+        ]
+    },
+    {
+        "id": "dd1f04b50df19959",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "ตรวจสอบข้อมูลเดิม",
+        "x": 890,
+        "y": 880,
+        "wires": [
+            [
+                "fab95e549da65d7a"
+            ]
+        ]
+    },
+    {
+        "id": "fab95e549da65d7a",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "บันทึกหรืออัพเดท",
+        "func": "const existingRecords = msg.payload;\nconst userId = msg.userId;\nconst tempData = msg.tempData;\n\n// กำหนด SQL query ตามสถานการณ์\nif (existingRecords && existingRecords.length > 0) {\n    // อัพเดทข้อมูลเดิม\n    const tempId = existingRecords[0].id;\n    msg.topic = \"UPDATE temp_proposals SET form_data = ?, current_step = ?, updated_at = NOW() WHERE id = ?\";\n    msg.payload = [tempData.formData, tempData.currentStep, tempId];\n} else {\n    // สร้างข้อมูลใหม่\n    msg.topic = \"INSERT INTO temp_proposals (user_id, form_data, current_step) VALUES (?, ?, ?)\";\n    msg.payload = [userId, tempData.formData, tempData.currentStep];\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1110,
+        "y": 880,
+        "wires": [
+            [
+                "a1f783bea6cefedd"
+            ]
+        ]
+    },
+    {
+        "id": "a1f783bea6cefedd",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "บันทึกลงฐานข้อมูล",
+        "x": 1110,
+        "y": 940,
+        "wires": [
+            [
+                "05f6541ba75d20a6"
+            ]
+        ]
+    },
+    {
+        "id": "05f6541ba75d20a6",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "เตรียมผลลัพธ์",
+        "func": "msg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    message: \"บันทึกข้อมูลชั่วคราวสำเร็จ\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 1110,
+        "y": 1000,
+        "wires": [
+            [
+                "a07dadee9206bef3"
+            ]
+        ]
+    },
+    {
+        "id": "a07dadee9206bef3",
+        "type": "http response",
+        "z": "317633f77fe29fae",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+        },
+        "x": 1500,
+        "y": 1060,
+        "wires": []
+    },
+    {
+        "id": "97e6cecd29b78e00",
+        "type": "catch",
+        "z": "317633f77fe29fae",
+        "name": "จัดการข้อผิดพลาด JWT",
+        "scope": [
+            "0a29d56275d73f6b"
+        ],
+        "uncaught": false,
+        "x": 470,
+        "y": 820,
+        "wires": [
+            [
+                "1778749b15195b83"
+            ]
+        ]
+    },
+    {
+        "id": "1778749b15195b83",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "แจ้งข้อผิดพลาด",
+        "func": "let errorMessage = \"Invalid or expired token\";\nlet errorCode = \"INVALID_TOKEN\";\n\nif (msg.error && msg.error.message && msg.error.message.includes('expired')) {\n    errorMessage = \"Token expired, please login again\";\n    errorCode = \"TOKEN_EXPIRED\";\n}\n\nmsg.statusCode = 401;\nmsg.payload = {\n    success: false,\n    error: errorMessage,\n    code: errorCode\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 690,
+        "y": 820,
+        "wires": [
+            [
+                "a07dadee9206bef3"
+            ]
+        ]
+    },
+    {
+        "id": "temp-get-http",
+        "type": "http in",
+        "z": "317633f77fe29fae",
+        "name": "ดึงข้อมูลชั่วคราว",
+        "url": "/api/proposals/temp",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 80,
+        "y": 1040,
+        "wires": [
+            [
+                "get-auth-check"
+            ]
+        ]
+    },
+    {
+        "id": "get-auth-check",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ตรวจสอบ Token",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg];\n}\n\n// ดึง token จาก header\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 330,
+        "y": 1040,
+        "wires": [
+            [
+                "get-jwt-verify"
+            ],
+            [
+                "067477ae6b1f4553"
+            ]
+        ]
+    },
+    {
+        "id": "get-jwt-verify",
+        "type": "jwt verify",
+        "z": "317633f77fe29fae",
+        "name": "",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 520,
+        "y": 1040,
+        "wires": [
+            [
+                "prepare-get-temp"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-get-temp",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "เตรียมคำขอ",
+        "func": "// ดึง userId จาก token\nconst userId = msg.payload.userId;\n\n// เตรียมคำสั่ง SQL\nmsg.topic = \"SELECT * FROM temp_proposals WHERE user_id = ? ORDER BY updated_at DESC LIMIT 1\";\nmsg.payload = [userId];\n\nreturn msg;",
+        "outputs": 1,
+        "noerr": 0,
+        "x": 720,
+        "y": 1040,
+        "wires": [
+            [
+                "get-temp-from-db"
+            ]
+        ]
+    },
+    {
+        "id": "get-temp-from-db",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "ดึงข้อมูลจาก DB",
+        "x": 920,
+        "y": 1040,
+        "wires": [
+            [
+                "format-temp-data"
+            ]
+        ]
+    },
+    {
+        "id": "format-temp-data",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "จัดรูปแบบข้อมูล",
+        "func": "const result = msg.payload;\n\nif (!result || result.length === 0) {\n    // ไม่พบข้อมูล\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบข้อมูลชั่วคราว\"\n    };\n} else {\n    // พบข้อมูล\n    const tempData = result[0];\n    let formData = {};\n    \n    try {\n        formData = JSON.parse(tempData.form_data);\n    } catch (e) {\n        node.warn(\"Error parsing JSON: \" + e.message);\n    }\n    \n    msg.statusCode = 200;\n    msg.payload = {\n        success: true,\n        data: {\n            id: tempData.id,\n            formData: formData,\n            currentStep: tempData.current_step,\n            updatedAt: tempData.updated_at\n        }\n    };\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1110,
+        "y": 1040,
+        "wires": [
+            [
+                "067477ae6b1f4553"
+            ]
+        ]
+    },
+    {
+        "id": "067477ae6b1f4553",
+        "type": "http response",
+        "z": "317633f77fe29fae",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+        },
+        "x": 1320,
+        "y": 1100,
+        "wires": []
+    },
+    {
+        "id": "67111d262c0716b3",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 4",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 300,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "3f050e8bf030ed47",
+        "type": "catch",
+        "z": "317633f77fe29fae",
+        "name": "จับข้อผิดพลาดการบันทึกไฟล์",
+        "scope": [
+            "73c487ef3a4e5201"
+        ],
+        "uncaught": false,
+        "x": 1050,
+        "y": 1420,
+        "wires": [
+            [
+                "53ad32fdd3f6f7f7"
+            ]
+        ]
+    },
+    {
+        "id": "53ad32fdd3f6f7f7",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "แสดงข้อผิดพลาดการบันทึกไฟล์",
+        "func": "// บันทึกรายละเอียดข้อผิดพลาด\nnode.error(\"เกิดข้อผิดพลาดในการบันทึกไฟล์: \" + JSON.stringify(msg.error || {}));\n\n// สร้างข้อความตอบกลับ\nmsg.statusCode = 500;\nmsg.payload = {\n    success: false,\n    message: \"ไม่สามารถบันทึกไฟล์ได้ กรุณาตรวจสอบสิทธิ์การเข้าถึงโฟลเดอร์\",\n    path: msg.fileData ? msg.fileData.filePath : \"ไม่ทราบเส้นทาง\",\n    error: msg.error ? msg.error.message : \"ไม่ทราบสาเหตุ\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "x": 1400,
+        "y": 1440,
+        "wires": [
+            [
+                "9259894737370adf"
+            ]
+        ]
+    },
+    {
+        "id": "c7403a6025011df2",
+        "type": "exec",
+        "z": "317633f77fe29fae",
+        "command": "ls -la /var/www/laravel/public/uploads/sidfile",
+        "addpay": "",
+        "append": "",
+        "useSpawn": "false",
+        "timer": "",
+        "winHide": false,
+        "oldrc": false,
+        "name": "",
+        "x": 2210,
+        "y": 2920,
+        "wires": [
+            [
+                "0d0f9eb925095ba9"
+            ],
+            [],
+            []
+        ]
+    },
+    {
+        "id": "d67df95a596d107d",
+        "type": "inject",
+        "z": "317633f77fe29fae",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 1880,
+        "y": 2960,
+        "wires": [
+            [
+                "c7403a6025011df2"
+            ]
+        ]
+    },
+    {
+        "id": "0d0f9eb925095ba9",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 11",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2300,
+        "y": 2840,
+        "wires": []
+    },
+    {
+        "id": "6b95e0ce30ce8591",
+        "type": "http in",
+        "z": "317633f77fe29fae",
+        "name": "ส่งข้อเสนอโครงการ",
+        "url": "/api/proposals",
+        "method": "post",
+        "upload": true,
+        "swaggerDoc": "",
+        "x": 130,
+        "y": 1380,
+        "wires": [
+            [
+                "06164987772a5d98",
+                "bc145b6e5f0188a4"
+            ]
+        ]
+    },
+    {
+        "id": "06164987772a5d98",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ตรวจสอบ Token",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg];\n}\n\n// ดึง token จาก header\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 380,
+        "y": 1360,
+        "wires": [
+            [
+                "f1a7b9a78dd1f3c5"
+            ],
+            [
+                "79ab0f0906162fb9"
+            ]
+        ]
+    },
+    {
+        "id": "bc145b6e5f0188a4",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 12",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 290,
+        "y": 1240,
+        "wires": []
+    },
+    {
+        "id": "f1a7b9a78dd1f3c5",
+        "type": "jwt verify",
+        "z": "317633f77fe29fae",
+        "name": "",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 550,
+        "y": 1380,
+        "wires": [
+            [
+                "b8887666287b850f"
+            ]
+        ]
+    },
+    {
+        "id": "b8887666287b850f",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ตรวจสอบข้อมูลและไฟล์",
+        "func": "// ชื่อโหนด: Check Request Data\n// ดึงข้อมูลผู้ใช้จาก token\nconst userId = msg.payload.userId;\n\n// ตรวจสอบข้อมูลในฟอร์ม\nconst formData = msg.req.body;\nconst files = msg.req.files;\n\n// แสดงข้อมูลเพื่อดีบัก\nnode.warn(\"Files received: \" + JSON.stringify(files ? files.length : 'none'));\n\n// ตรวจสอบว่ามีไฟล์หรือไม่\nif (!files || files.length === 0) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบไฟล์ที่แนบมา\",\n        debug: \"files object is empty or undefined\"\n    };\n    return [null, msg];\n}\n\n// ตรวจสอบข้อมูลที่จำเป็น\nconst requiredFields = [\n    'innovationType',\n    'leadName',\n    'leadDepartment',\n    'leadPosition',\n    'orgType',\n    'leadAddress',\n    'leadPhone',\n    'leadEmail',\n    'projectTitle',\n    'projectObjective',\n    'province',\n    'budgetRequested',\n    'beneficiaries',\n    'projectIndicators'\n];\n\nlet missingFields = [];\nfor (const field of requiredFields) {\n    if (!formData[field]) {\n        missingFields.push(field);\n    }\n}\n\n// ตรวจสอบไฟล์ที่จำเป็น\nconst requiredFiles = ['wordProposal', 'pdfProposal', 'businessProof'];\nlet missingFiles = [];\nlet fileMap = {};\n\n// แปลงรายการไฟล์ให้เป็น Object โดยใช้ fieldname เป็น key\nfiles.forEach(file => {\n    fileMap[file.fieldname] = file;\n});\n\nfor (const fileField of requiredFiles) {\n    if (!fileMap[fileField]) {\n        missingFiles.push(fileField);\n    }\n}\n\n// ถ้ามีข้อมูลหรือไฟล์ที่จำเป็นขาดหายไป\nif (missingFields.length > 0 || missingFiles.length > 0) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"ข้อมูลไม่ครบถ้วน\",\n        missingFields: missingFields,\n        missingFiles: missingFiles\n    };\n    return [null, msg];\n}\n\n// สร้างวันที่สำหรับโฟลเดอร์\nconst now = new Date();\nconst year = now.getFullYear().toString();\nconst month = (now.getMonth() + 1).toString().padStart(2, '0');\nconst date = now.getDate().toString().padStart(2, '0');\n\n// กำหนดเส้นทางโฟลเดอร์\nconst folderPath = '/var/www/laravel/public/sidfile';\n\n// เตรียมข้อมูลสำหรับขั้นตอนต่อไป\nmsg.userId = userId;\nmsg.formData = formData;\nmsg.folderPath = folderPath;\nmsg.files = files;\nmsg.fileMap = fileMap;\nmsg.requiredFiles = requiredFiles;\n// แสดง debug ข้อมูลโฟลเดอร์\nnode.warn(\"เส้นทางบันทึกไฟล์: \" + folderPath);\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 720,
+        "y": 1340,
+        "wires": [
+            [
+                "ed6e06354df1fcdc"
+            ],
+            [
+                "79ab0f0906162fb9"
+            ]
+        ]
+    },
+    {
+        "id": "ed6e06354df1fcdc",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "เตรียมไฟล์สำหรับอัพโหลด",
+        "func": "// นำข้อมูลจากโหนดก่อนหน้ามาใช้\nconst files = msg.files;\nconst fileMap = msg.fileMap;\nconst requiredFiles = msg.requiredFiles;\nconst folderPath = msg.folderPath;\n\n// แสดงผลการสร้างโฟลเดอร์\nnode.warn(\"สร้างโฟลเดอร์สำเร็จ: \" + folderPath);\n\n// สร้างอาร์เรย์สำหรับเก็บข้อมูลไฟล์\nlet fileDataArray = [];\n\n// วนลูปจัดการกับไฟล์แต่ละประเภท\nfor (const fileField of requiredFiles) {\n    if (fileMap[fileField]) {\n        const file = fileMap[fileField];\n        const originalFileName = file.originalname;\n        \n        // สร้างชื่อไฟล์ใหม่\n        const timestamp = Date.now();\n        const randomNum = Math.floor(Math.random() * 10000);\n        const fileExt = originalFileName.split('.').pop();\n        \n        // รูปแบบชื่อไฟล์: fileType_userId_timestamp_random.ext\n        const newFileName = `${fileField}_${msg.userId}_${timestamp}_${randomNum}.${fileExt}`;\n        const filePath = `${folderPath}/${newFileName}`;\n        \n        // สำคัญ: แปลง array เป็น Buffer object\n        let fileBuffer;\n        if (Array.isArray(file.buffer)) {\n            fileBuffer = Buffer.from(file.buffer);\n        } else {\n            fileBuffer = file.buffer;\n        }\n        \n        // เก็บข้อมูลไฟล์\n        fileDataArray.push({\n            field: fileField,\n            buffer: fileBuffer, // ใช้ Buffer ที่แปลงแล้ว\n            originalName: originalFileName,\n            newFileName: newFileName,\n            filePath: filePath,\n            webPath: `/sidfile/${newFileName}`\n        });\n        \n        // แสดงข้อมูลไฟล์\n        node.warn(`เตรียมไฟล์: ${originalFileName} -> ${filePath} (${fileBuffer ? fileBuffer.length : 0} bytes)`);\n    }\n}\n\n// ถ้าไม่มีไฟล์\nif (fileDataArray.length === 0) {\n    node.error(\"ไม่มีไฟล์ที่ต้องบันทึก\");\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"ไม่สามารถเตรียมไฟล์สำหรับอัพโหลดได้\"\n    };\n    return [null, msg];\n}\n\n// กำหนดข้อมูลสำหรับไฟล์ทั้งหมด\nmsg.allFiles = fileDataArray;\n\n// ส่งไปบันทึกไฟล์ด้วย file node แทน\n// วิธีนี้ง่ายกว่า แต่ต้องตั้งค่า encoding ของ file node เป็น 'none'\nconst firstFile = fileDataArray[0];\nmsg.fileData = firstFile;\nmsg.filename = firstFile.filePath;\nmsg.payload = firstFile.buffer;\n\nnode.warn(\"เริ่มบันทึกไฟล์แรก: \" + firstFile.filePath);\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1010,
+        "y": 1280,
+        "wires": [
+            [
+                "2292400cd29b9546"
+            ],
+            [
+                "79ab0f0906162fb9"
+            ]
+        ]
+    },
+    {
+        "id": "2292400cd29b9546",
+        "type": "file",
+        "z": "317633f77fe29fae",
+        "name": "บันทึกไฟล์",
+        "filename": "filename",
+        "filenameType": "msg",
+        "appendNewline": false,
+        "createDir": true,
+        "overwriteFile": "true",
+        "encoding": "none",
+        "x": 1320,
+        "y": 1340,
+        "wires": [
+            [
+                "6c12695c0ecbe8da"
+            ]
+        ]
+    },
+    {
+        "id": "6c12695c0ecbe8da",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ประมวลผลผลลัพธ์การบันทึกไฟล์",
+        "func": "// หาไฟล์ปัจจุบันในรายการไฟล์ทั้งหมด\nconst currentFile = msg.fileData;\nconst allFiles = msg.allFiles;\n\n// แสดงข้อความว่าบันทึกไฟล์สำเร็จ\nnode.warn(\"บันทึกไฟล์สำเร็จ: \" + currentFile.filePath);\n\n// เก็บรายการไฟล์ที่บันทึกแล้ว\nif (!msg.savedFiles) {\n    msg.savedFiles = {};\n}\n\n// บันทึกข้อมูลไฟล์ที่เพิ่งบันทึกเสร็จ\nmsg.savedFiles[currentFile.field] = {\n    originalName: currentFile.originalName,\n    newFileName: currentFile.newFileName,\n    filePath: currentFile.filePath,\n    webPath: currentFile.webPath\n};\n\n// หาไฟล์ถัดไปที่ต้องบันทึก\nconst currentIndex = allFiles.indexOf(currentFile);\nif (currentIndex < allFiles.length - 1) {\n    // ยังมีไฟล์ที่ต้องบันทึกต่อ\n    const nextFile = allFiles[currentIndex + 1];\n    msg.fileData = nextFile;\n    msg.filename = nextFile.filePath;\n    msg.payload = nextFile.buffer;\n    \n    node.warn(\"เริ่มบันทึกไฟล์ถัดไป: \" + nextFile.filePath);\n    \n    // ส่งไปบันทึกไฟล์ถัดไป\n    return [msg, null];\n} else {\n    // บันทึกไฟล์ครบทุกไฟล์แล้ว\n    node.warn(\"บันทึกไฟล์ทั้งหมดเรียบร้อย: \" + JSON.stringify(Object.keys(msg.savedFiles)));\n    \n    // ตอบกลับสำเร็จ\n    msg.statusCode = 400;\n    msg.data = {\n        success: true,\n        message: \"บันทึกข้อเสนอโครงการเรียบร้อยแล้ว\",\n        files: Object.keys(msg.savedFiles).map(key => ({\n            field: key,\n            originalName: msg.savedFiles[key].originalName,\n            path: msg.savedFiles[key].webPath\n        }))\n    };\n    \n    // ส่งไปตอบกลับ\n    return [null, msg];\n}\n",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1570,
+        "y": 1340,
+        "wires": [
+            [
+                "2292400cd29b9546"
+            ],
+            [
+                "67d5fd7850a4d32d"
+            ]
+        ]
+    },
+    {
+        "id": "79ab0f0906162fb9",
+        "type": "http response",
+        "z": "317633f77fe29fae",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+        },
+        "x": 2040,
+        "y": 1200,
+        "wires": []
+    },
+    {
+        "id": "479c63ca57b4b771",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "",
+        "x": 1150,
+        "y": 800,
+        "wires": [
+            [
+                "d840a066045b0bf1"
+            ]
+        ]
+    },
+    {
+        "id": "11b23eed30266fe6",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 10",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1560,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "d840a066045b0bf1",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "check2",
+        "func": "if (!msg.payload || !Array.isArray(msg.payload) || msg.payload.length === 0) {\n    msg.old.user.proposals = false;\n}else{\n    msg.old.user.proposals = true;\n}\nmsg.payload = msg.old;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1340,
+        "y": 740,
+        "wires": [
+            [
+                "11b23eed30266fe6",
+                "49c9c11b7ffe4bfc"
+            ]
+        ]
+    },
+    {
+        "id": "859927029bab7fe4",
+        "type": "http response",
+        "z": "317633f77fe29fae",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+        },
+        "x": 2420,
+        "y": 1520,
+        "wires": []
+    },
+    {
+        "id": "98b1da328d3b402d",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ตอบกลับสำเร็จ",
+        "func": "// ตรวจสอบว่ามีการกำหนด statusCode หรือยัง\nif (!msg.statusCode) {\n    msg.statusCode = 200;\n}\n\n// ตรวจสอบว่ามีการกำหนด payload หรือยัง\nif (!msg.payload) {\n    msg.payload = {\n        success: true,\n        message: \"บันทึกข้อเสนอโครงการเรียบร้อยแล้ว\",\n        proposal_id: msg.proposalId\n    };\n}\n\n// ลบข้อมูลชั่วคราว (ถ้ามี)\nif (msg.userId) {\n    // ควรสร้าง flow สำหรับลบข้อมูลชั่วคราวต่างหาก\n    // แต่ในที่นี้จะข้ามไปก่อน\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2190,
+        "y": 1660,
+        "wires": [
+            [
+                "859927029bab7fe4"
+            ]
+        ]
+    },
+    {
+        "id": "ab562ab7e0203e27",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ประมวลผลข้อมูลที่ปรึกษา",
+        "func": "const insertId = msg.payload.insertId;\nconst advisors = msg.advisorsData || [];\n\n// ถ้าไม่มีที่ปรึกษา ให้ข้ามไป\nif (!advisors.length) {\n    msg.statusCode = 200;\n    msg.payload = {\n        success: true,\n        message: \"บันทึกข้อเสนอโครงการเรียบร้อยแล้ว\",\n        proposal_id: insertId\n    };\n    return [null, msg];\n}\n\n// เตรียมคำสั่ง SQL สำหรับบันทึกที่ปรึกษาคนแรก\nmsg.topic = \"INSERT INTO proposal_advisors (proposal_id, name, department, phone, email) VALUES (?, ?, ?, ?, ?)\";\nmsg.payload = [\n    insertId,\n    advisors[0].name,\n    advisors[0].department,\n    advisors[0].phone || null,\n    advisors[0].email || null\n];\n\n// เก็บข้อมูลที่จำเป็น\nmsg.proposalId = insertId;\nmsg.remainingAdvisors = advisors.slice(1);\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 1940,
+        "y": 1620,
+        "wires": [
+            [
+                "7b584db3054cb2eb"
+            ],
+            [
+                "98b1da328d3b402d"
+            ]
+        ]
+    },
+    {
+        "id": "d676f568a04fe81d",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ประมวลผลที่ปรึกษาคนถัดไป",
+        "func": "// ตรวจสอบว่ามีที่ปรึกษาเหลืออยู่หรือไม่\nif (msg.remainingAdvisors && msg.remainingAdvisors.length > 0) {\n    // เอาที่ปรึกษาคนถัดไปออกมา\n    const nextAdvisor = msg.remainingAdvisors.shift();\n    \n    // เตรียมคำสั่ง SQL สำหรับบันทึกที่ปรึกษาคนถัดไป\n    msg.topic = \"INSERT INTO proposal_advisors (proposal_id, name, department, phone, email) VALUES (?, ?, ?, ?, ?)\";\n    msg.payload = [\n        msg.proposalId,\n        nextAdvisor.name,\n        nextAdvisor.department,\n        nextAdvisor.phone || null,\n        nextAdvisor.email || null\n    ];\n    \n    // ส่งไปบันทึกที่ปรึกษาคนถัดไป\n    return [msg, null];\n} else {\n    // บันทึกที่ปรึกษาครบทุกคนแล้ว\n    msg.statusCode = 200;\n    msg.payload = {\n        success: true,\n        message: \"บันทึกข้อเสนอโครงการเรียบร้อยแล้ว\",\n        proposal_id: msg.proposalId\n    };\n    \n    // ส่งไปตอบกลับ\n    return [null, msg];\n}\n",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 1940,
+        "y": 1700,
+        "wires": [
+            [
+                "7b584db3054cb2eb"
+            ],
+            [
+                "98b1da328d3b402d"
+            ]
+        ]
+    },
+    {
+        "id": "67d5fd7850a4d32d",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "เตรียมข้อมูลสำหรับฐานข้อมูล",
+        "func": "// เตรียมข้อมูลสำหรับบันทึกลงฐานข้อมูล\nconst formData = msg.formData;\nconst savedFiles = msg.savedFiles;\nconst userId = msg.userId;\n\n// เตรียมคำสั่ง SQL สำหรับบันทึกโครงการหลัก\nmsg.topic = `\nINSERT INTO proposals (\n    user_id, \n    innovation_type, \n    lead_name, \n    lead_department, \n    lead_position, \n    org_type, \n    other_org_type, \n    lead_address, \n    lead_phone, \n    lead_email, \n    project_title, \n    project_objective, \n    province, \n    other_province, \n    budget_requested, \n    beneficiaries, \n    project_indicators, \n    word_file_original, \n    word_file_path, \n    pdf_file_original, \n    pdf_file_path, \n    business_file_original, \n    business_file_path,\n    proposals_id\n) VALUES (?,?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)\n`;\n\n// เตรียมพารามิเตอร์\nmsg.payload = [\n    userId,\n    formData.innovationType,\n    formData.leadName,\n    formData.leadDepartment,\n    formData.leadPosition,\n    formData.orgType,\n    formData.otherOrgType || null,\n    formData.leadAddress,\n    formData.leadPhone,\n    formData.leadEmail,\n    formData.projectTitle,\n    formData.projectObjective,\n    formData.province,\n    formData.otherProvince || null,\n    parseFloat(formData.budgetRequested) || 0,\n    parseInt(formData.beneficiaries) || 0,\n    formData.projectIndicators,\n    savedFiles.wordProposal.originalName,\n    savedFiles.wordProposal.webPath,\n    savedFiles.pdfProposal.originalName,\n    savedFiles.pdfProposal.webPath,\n    savedFiles.businessProof.originalName,\n    savedFiles.businessProof.webPath,\n    formData.referenceNumber\n];\n\n// เก็บข้อมูลที่ปรึกษาไว้สำหรับบันทึกในลำดับถัดไป\nif (formData.advisors) {\n    try {\n        msg.advisorsData = JSON.parse(formData.advisors);\n    } catch (e) {\n        msg.advisorsData = [];\n    }\n} else {\n    msg.advisorsData = [];\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1880,
+        "y": 1540,
+        "wires": [
+            [
+                "002caeeb33ab6f42",
+                "c4b27dedc16bd109"
+            ]
+        ]
+    },
+    {
+        "id": "c4b27dedc16bd109",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "บันทึกข้อมูลลงฐานข้อมูล",
+        "x": 1700,
+        "y": 1620,
+        "wires": [
+            [
+                "ab562ab7e0203e27"
+            ]
+        ]
+    },
+    {
+        "id": "7b584db3054cb2eb",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "บันทึกข้อมูลที่ปรึกษา",
+        "x": 1690,
+        "y": 1700,
+        "wires": [
+            [
+                "d676f568a04fe81d"
+            ]
+        ]
+    },
+    {
+        "id": "002caeeb33ab6f42",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 3",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2120,
+        "y": 1500,
+        "wires": []
+    },
+    {
+        "id": "9259894737370adf",
+        "type": "http response",
+        "z": "317633f77fe29fae",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+        },
+        "x": 1600,
+        "y": 1520,
+        "wires": []
+    },
+    {
+        "id": "50e133eb603219e5",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "debug 6",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1100,
+        "y": 220,
+        "wires": []
+    },
+    {
+        "id": "inject-button",
+        "type": "inject",
+        "z": "317633f77fe29fae",
+        "name": "ทดสอบส่งอีเมล",
+        "props": [
+            {
+                "p": "payload"
+            }
+        ],
+        "repeat": "",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 190,
+        "y": 1540,
+        "wires": [
+            [
+                "prepare-data"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-data",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "เตรียมข้อมูล",
+        "func": "// สร้างข้อมูลสำหรับอีเมล\nconst today = new Date();\nconst thaiDate = today.toLocaleDateString('th-TH', {\n    year: 'numeric',\n    month: 'long',\n    day: 'numeric'\n});\n\nmsg.emailData = {\n    name: \"คุณสมชาย รักเรียน\",\n    date: thaiDate,\n    important_message: \"ระบบได้อัพเดทข้อมูลของคุณเรียบร้อยแล้ว กรุณาตรวจสอบความถูกต้อง\",\n    id: \"TH-\" + Math.floor(Math.random() * 10000),\n    status: \"อนุมัติแล้ว\",\n    process_date: thaiDate,\n    note: \"ดำเนินการเรียบร้อย\",\n    action_url: \"https://example.com/check-status\",\n    support_email: \"support@example.com\",\n    current_year: today.getFullYear(),\n    company_address: \"123 ถนนสุขุมวิท แขวงคลองเตย เขตคลองเตย กรุงเทพฯ 10110\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 350,
+        "y": 1540,
+        "wires": [
+            [
+                "html-template"
+            ]
+        ]
+    },
+    {
+        "id": "html-template",
+        "type": "template",
+        "z": "317633f77fe29fae",
+        "name": "สร้าง HTML",
+        "field": "payload",
+        "fieldType": "msg",
+        "format": "handlebars",
+        "syntax": "mustache",
+        "template": "<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"utf-8\">\n    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n    <title>ข้อมูลสำคัญจากระบบของเรา</title>\n    <style>\n        body {\n            font-family: 'Prompt', 'Sarabun', 'Arial', sans-serif;\n            line-height: 1.6;\n            color: #333333;\n            background-color: #f5f5f5;\n            margin: 0;\n            padding: 0;\n        }\n        .container {\n            max-width: 600px;\n            margin: 0 auto;\n            padding: 20px;\n            background-color: #ffffff;\n        }\n        .header {\n            background-color: #4A90E2;\n            color: white;\n            padding: 20px;\n            text-align: center;\n            border-radius: 5px 5px 0 0;\n        }\n        .content {\n            padding: 20px;\n            border-left: 1px solid #dddddd;\n            border-right: 1px solid #dddddd;\n        }\n        .footer {\n            background-color: #f8f8f8;\n            padding: 15px;\n            text-align: center;\n            font-size: 12px;\n            color: #666666;\n            border-radius: 0 0 5px 5px;\n            border: 1px solid #dddddd;\n            border-top: none;\n        }\n        .button {\n            display: inline-block;\n            padding: 10px 20px;\n            background-color: #4A90E2;\n            color: white;\n            text-decoration: none;\n            border-radius: 4px;\n            margin: 15px 0;\n        }\n        .highlight {\n            background-color: #FFF9C4;\n            padding: 15px;\n            border-left: 4px solid #FBC02D;\n            margin: 20px 0;\n        }\n        table {\n            width: 100%;\n            border-collapse: collapse;\n            margin: 20px 0;\n        }\n        th, td {\n            padding: 12px;\n            text-align: left;\n            border-bottom: 1px solid #dddddd;\n        }\n        th {\n            background-color: #f2f2f2;\n        }\n        .logo {\n            max-width: 150px;\n            height: auto;\n            margin-bottom: 15px;\n        }\n        @media only screen and (max-width: 600px) {\n            .container {\n                width: 100%;\n            }\n            .content {\n                padding: 15px;\n            }\n        }\n    </style>\n</head>\n<body>\n    <div class=\"container\">\n        <div class=\"header\">\n            <!-- ถ้ามีโลโก้ให้ใส่ที่นี่ -->\n            <!-- <img src=\"https://your-logo-url.com/logo.png\" alt=\"Logo\" class=\"logo\"> -->\n            <h1>ข้อมูลสำคัญจากระบบ</h1>\n            <p>{{emailData.date}}</p>\n        </div>\n        \n        <div class=\"content\">\n            <h2>สวัสดีคุณ {{emailData.name}},</h2>\n            \n            <p>ขอบคุณที่ใช้บริการของเรา เราได้รับข้อมูลของคุณเรียบร้อยแล้ว</p>\n            \n            <div class=\"highlight\">\n                <h3>ข้อมูลสำคัญ!</h3>\n                <p>{{emailData.important_message}}</p>\n            </div>\n            \n            <h3>รายละเอียดข้อมูลของคุณ:</h3>\n            <table>\n                <tr>\n                    <th>รายการ</th>\n                    <th>รายละเอียด</th>\n                </tr>\n                <tr>\n                    <td>ID</td>\n                    <td>{{emailData.id}}</td>\n                </tr>\n                <tr>\n                    <td>สถานะ</td>\n                    <td>{{emailData.status}}</td>\n                </tr>\n                <tr>\n                    <td>วันที่ดำเนินการ</td>\n                    <td>{{emailData.process_date}}</td>\n                </tr>\n                <tr>\n                    <td>หมายเหตุ</td>\n                    <td>{{emailData.note}}</td>\n                </tr>\n            </table>\n            \n            <p>คุณสามารถตรวจสอบข้อมูลเพิ่มเติมได้โดยคลิกที่ปุ่มด้านล่าง:</p>\n            \n            <div style=\"text-align: center;\">\n                <a href=\"{{emailData.action_url}}\" class=\"button\">ตรวจสอบข้อมูลเพิ่มเติม</a>\n            </div>\n            \n            <p>หากคุณมีคำถามหรือต้องการความช่วยเหลือเพิ่มเติม โปรดติดต่อทีมสนับสนุนของเราได้ที่ <a href=\"mailto:{{emailData.support_email}}\">{{emailData.support_email}}</a></p>\n        </div>\n        \n        <div class=\"footer\">\n            <p>© {{emailData.current_year}} บริษัทของคุณ. สงวนลิขสิทธิ์.</p>\n            <p>ที่อยู่: {{emailData.company_address}}</p>\n            <p>อีเมลนี้ถูกส่งโดยอัตโนมัติ กรุณาอย่าตอบกลับ</p>\n        </div>\n    </div>\n</body>\n</html>",
+        "output": "str",
+        "x": 530,
+        "y": 1540,
+        "wires": [
+            [
+                "setup-email"
+            ]
+        ]
+    },
+    {
+        "id": "setup-email",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "ตั้งค่าอีเมล",
+        "func": "// ตั้งค่าหัวข้อและผู้รับอีเมล\nmsg.topic = \"ข้อมูลสำคัญจากระบบได้รับการอัพเดทแล้ว\";\n\n// ระบุอีเมลผู้รับที่นี่\nmsg.to = \"your.email@example.com\";\n\n// ตั้งค่า text version เป็นทางเลือก\nmsg.plaintext = \"สวัสดีคุณ \" + msg.emailData.name + \",\\n\\n\" +\n    \"ขอบคุณที่ใช้บริการของเรา เราได้รับข้อมูลของคุณเรียบร้อยแล้ว\\n\\n\" +\n    \"ข้อมูลสำคัญ!\\n\" +\n    msg.emailData.important_message + \"\\n\\n\" +\n    \"รายละเอียดข้อมูลของคุณ:\\n\" +\n    \"- ID: \" + msg.emailData.id + \"\\n\" +\n    \"- สถานะ: \" + msg.emailData.status + \"\\n\" +\n    \"- วันที่ดำเนินการ: \" + msg.emailData.process_date + \"\\n\" +\n    \"- หมายเหตุ: \" + msg.emailData.note + \"\\n\\n\" +\n    \"คุณสามารถตรวจสอบข้อมูลเพิ่มเติมได้ที่: \" + msg.emailData.action_url + \"\\n\\n\" +\n    \"หากคุณมีคำถามหรือต้องการความช่วยเหลือเพิ่มเติม โปรดติดต่อทีมสนับสนุนของเราได้ที่ \" + msg.emailData.support_email + \"\\n\\n\" +\n    \"© \" + msg.emailData.current_year + \" บริษัทของคุณ. สงวนลิขสิทธิ์.\\n\" +\n    \"ที่อยู่: \" + msg.emailData.company_address + \"\\n\" +\n    \"อีเมลนี้ถูกส่งโดยอัตโนมัติ กรุณาอย่าตอบกลับ\";\n\n// แสดงในคอนโซลเพื่อตรวจสอบค่า\nnode.warn(\"Email To: \" + msg.to);\nnode.warn(\"Topic: \" + msg.topic);\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 710,
+        "y": 1540,
+        "wires": [
+            [
+                "email-node-relay"
+            ]
+        ]
+    },
+    {
+        "id": "email-node",
+        "type": "e-mail",
+        "z": "317633f77fe29fae",
+        "server": "webmail.adicet.online",
+        "port": "587",
+        "authtype": "BASIC",
+        "saslformat": false,
+        "token": "oauth2Response.access_token",
+        "secure": false,
+        "tls": false,
+        "name": "songkittirote.n@gmail.com",
+        "dname": "ส่งอีเมล HTML",
+        "x": 920,
+        "y": 1540,
+        "wires": []
+    },
+    {
+        "id": "email-node-best",
+        "type": "e-mail",
+        "z": "317633f77fe29fae",
+        "server": "thsv55.hostatom.com",
+        "port": "465",
+        "authtype": "BASIC",
+        "saslformat": false,
+        "token": "oauth2Response.access_token",
+        "secure": true,
+        "tls": true,
+        "name": "songkittirote.n@gmail.com",
+        "dname": "ส่งอีเมล HTML",
+        "x": 960,
+        "y": 1640,
+        "wires": []
+    },
+    {
+        "id": "email-node-relay",
+        "type": "e-mail",
+        "z": "317633f77fe29fae",
+        "server": "thsv55.hostatom.com",
+        "port": "587",
+        "authtype": "BASIC",
+        "saslformat": false,
+        "token": "oauth2Response.access_token",
+        "secure": false,
+        "tls": true,
+        "name": "t.sataklang@gmail.com",
+        "dname": "ส่งอีเมล (SMTP Relay)",
+        "x": 820,
+        "y": 1720,
+        "wires": []
+    },
+    {
+        "id": "register-http",
+        "type": "http in",
+        "z": "317633f77fe29fae",
+        "name": "Register Endpoint",
+        "url": "/api/auth/register",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 1410,
+        "y": 1940,
+        "wires": [
+            [
+                "validate-register-input"
+            ]
+        ]
+    },
+    {
+        "id": "validate-register-input",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Validate Register Input",
+        "func": "// ดึงข้อมูลจาก msg.payload\nconst { username, email, password, role } = msg.payload;\n\n// ตรวจสอบข้อมูลที่จำเป็น\nif (!username || !email || !password) {\n    msg.statusCode = 400;\n    msg.payload = { \n        success: false, \n        message: \"กรุณากรอกข้อมูลให้ครบถ้วน\" \n    };\n    return [null, msg];\n}\n\n// ตรวจสอบรูปแบบ username\nconst usernamePattern = /^[a-zA-Z0-9_]{3,20}$/;\nif (!usernamePattern.test(username)) {\n    msg.statusCode = 400;\n    msg.payload = { \n        success: false, \n        message: \"ชื่อผู้ใช้ต้องมี 3-20 ตัวอักษร ใช้ได้เฉพาะ a-z, A-Z, 0-9 และ _\" \n    };\n    return [null, msg];\n}\n\n// ตรวจสอบรูปแบบ email\nconst emailPattern = /^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/;\nif (!emailPattern.test(email)) {\n    msg.statusCode = 400;\n    msg.payload = { \n        success: false, \n        message: \"รูปแบบอีเมลไม่ถูกต้อง\" \n    };\n    return [null, msg];\n}\n\n// ตรวจสอบความยาวรหัสผ่าน\nif (password.length < 8) {\n    msg.statusCode = 400;\n    msg.payload = { \n        success: false, \n        message: \"รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร\" \n    };\n    return [null, msg];\n}\n\n// เก็บข้อมูลไว้ใช้ต่อ\nmsg.userData = {\n    username,\n    email,\n    password,\n    role: role || 'user' // default role เป็น 'user'\n};\n\n// ตรวจสอบ username ซ้ำ\nmsg.topic = \"SELECT id FROM users WHERE username = ?\";\nmsg.payload = [username];\nmsg.checkType = \"username\";\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1630,
+        "y": 1940,
+        "wires": [
+            [
+                "check-duplicate"
+            ],
+            [
+                "register-response"
+            ]
+        ]
+    },
+    {
+        "id": "check-duplicate",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Check Duplicate",
+        "x": 1870,
+        "y": 1940,
+        "wires": [
+            [
+                "process-duplicate-check"
+            ]
+        ]
+    },
+    {
+        "id": "process-duplicate-check",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Process Duplicate Check",
+        "func": "const result = msg.payload;\nconst checkType = msg.checkType;\n\n// ตรวจสอบว่ามีข้อมูลซ้ำหรือไม่\nif (result && result.length > 0) {\n    msg.statusCode = 400;\n    msg.payload = { \n        success: false, \n        message: checkType === \"username\" ? \n            \"ชื่อผู้ใช้นี้มีผู้ใช้แล้ว\" : \n            \"อีเมลนี้มีผู้ใช้แล้ว\" \n    };\n    return [null, msg];\n}\n\n// ถ้าเป็นการตรวจสอบ username ให้ตรวจสอบ email ต่อ\nif (checkType === \"username\") {\n    msg.topic = \"SELECT id FROM users WHERE email = ?\";\n    msg.payload = [msg.userData.email];\n    msg.checkType = \"email\";\n    return [msg, null];\n}\n\n// ถ้าผ่านการตรวจสอบทั้งหมด ให้เข้ารหัสรหัสผ่าน\nmsg.payload = msg.userData.password;\nmsg.field = \"password\";\nmsg.target = \"payload\";\n\nreturn [null, null, msg];",
+        "outputs": 3,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1630,
+        "y": 2040,
+        "wires": [
+            [
+                "check-duplicate"
+            ],
+            [
+                "register-response"
+            ],
+            [
+                "hash-password"
+            ]
+        ]
+    },
+    {
+        "id": "hash-password",
+        "type": "bcrypt",
+        "z": "317633f77fe29fae",
+        "name": "",
+        "action": "encrypt",
+        "field": "payload",
+        "hash": "password",
+        "target": "payload",
+        "assignment": "replace",
+        "match": "match",
+        "outputs": 1,
+        "rounds": 10,
+        "x": 1840,
+        "y": 2060,
+        "wires": [
+            [
+                "prepare-insert"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-insert",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Prepare Insert Query",
+        "func": "// เตรียมคำสั่ง SQL สำหรับบันทึกผู้ใช้ใหม่\nmsg.topic = \"INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)\";\nmsg.payload = [\n    msg.userData.username,\n    msg.userData.email,\n    msg.payload, // hashed password\n    msg.userData.role\n];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2090,
+        "y": 2060,
+        "wires": [
+            [
+                "insert-user"
+            ]
+        ]
+    },
+    {
+        "id": "insert-user",
+        "type": "mysql",
+        "z": "317633f77fe29fae",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Insert New User",
+        "x": 2310,
+        "y": 2060,
+        "wires": [
+            [
+                "process-insert-result"
+            ]
+        ]
+    },
+    {
+        "id": "process-insert-result",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Process Insert Result",
+        "func": "// ตรวจสอบผลการบันทึก\nif (msg.payload && msg.payload.affectedRows > 0) {\n    msg.statusCode = 201;\n    msg.payload = {\n        success: true,\n        message: \"สมัครสมาชิกสำเร็จ\",\n        data: {\n            id: msg.payload.insertId,\n            username: msg.userData.username,\n            email: msg.userData.email,\n            role: msg.userData.role\n        }\n    };\n} else {\n    msg.statusCode = 500;\n    msg.payload = {\n        success: false,\n        message: \"ไม่สามารถสมัครสมาชิกได้ กรุณาลองใหม่อีกครั้ง\"\n    };\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2090,
+        "y": 2120,
+        "wires": [
+            [
+                "register-response",
+                "debug-register"
+            ]
+        ]
+    },
+    {
+        "id": "register-response",
+        "type": "http response",
+        "z": "317633f77fe29fae",
+        "name": "Register Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept"
+        },
+        "x": 2330,
+        "y": 2000,
+        "wires": []
+    },
+    {
+        "id": "register-catch-error",
+        "type": "catch",
+        "z": "317633f77fe29fae",
+        "name": "Catch Register Errors",
+        "scope": [
+            "validate-register-input",
+            "check-duplicate",
+            "process-duplicate-check",
+            "hash-password",
+            "prepare-insert",
+            "insert-user",
+            "process-insert-result"
+        ],
+        "uncaught": false,
+        "x": 1890,
+        "y": 1880,
+        "wires": [
+            [
+                "handle-register-error"
+            ]
+        ]
+    },
+    {
+        "id": "handle-register-error",
+        "type": "function",
+        "z": "317633f77fe29fae",
+        "name": "Handle Register Error",
+        "func": "node.error(\"Registration error: \" + JSON.stringify(msg.error));\n\nmsg.statusCode = 500;\nmsg.payload = {\n    success: false,\n    message: \"เกิดข้อผิดพลาดในระบบ กรุณาลองใหม่อีกครั้ง\",\n    error: msg.error ? msg.error.message : \"Unknown error\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 2110,
+        "y": 1880,
+        "wires": [
+            [
+                "register-response"
+            ]
+        ]
+    },
+    {
+        "id": "debug-register",
+        "type": "debug",
+        "z": "317633f77fe29fae",
+        "name": "Debug Register",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 2330,
+        "y": 2180,
+        "wires": []
+    },
+    {
+        "id": "545508fd4e8bfe02",
+        "type": "MySQLdatabase",
+        "name": "",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "SID",
+        "tz": "",
+        "charset": "UTF8"
+    }
+]

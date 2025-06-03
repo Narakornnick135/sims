@@ -1,0 +1,1931 @@
+[
+    {
+        "id": "f19ba3457d2c8940",
+        "type": "tab",
+        "label": "Proposal Status Management",
+        "disabled": false,
+        "info": "Flow สำหรับจัดการสถานะโครงการนวัตกรรม",
+        "env": []
+    },
+    {
+        "id": "a1e5b728f3acd8f1",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "GET /api/getproposals/:id",
+        "url": "/api/getproposals/:id",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 269,
+        "y": 354,
+        "wires": [
+            [
+                "b9ca56f42e3c51d7",
+                "a72ba4a95eed5a31"
+            ]
+        ]
+    },
+    {
+        "id": "b9ca56f42e3c51d7",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Auth Check",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        message: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 469,
+        "y": 414,
+        "wires": [
+            [
+                "2be723a6d0d5aaa6"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "2be723a6d0d5aaa6",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Token",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 729,
+        "y": 334,
+        "wires": [
+            [
+                "1d87cfc798af7c4e"
+            ]
+        ]
+    },
+    {
+        "id": "1d87cfc798af7c4e",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Prepare Proposal Query",
+        "func": "// เก็บข้อมูลผู้ใช้ไว้เพื่อตรวจสอบสิทธิ์ต่อไป\nmsg.userId = msg.payload.userId;\n\n// ดึง ID ของโครงการจาก URL parameter\nconst proposalId = msg.req.params.id;\n\n// สร้าง SQL query สำหรับดึงข้อมูลโครงการ\nmsg.topic = \"SELECT * FROM proposals WHERE id = ?\";\nmsg.payload = [proposalId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1049,
+        "y": 334,
+        "wires": [
+            [
+                "4dc08b1cc9213d8d"
+            ]
+        ]
+    },
+    {
+        "id": "4dc08b1cc9213d8d",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Query Proposal",
+        "x": 1339,
+        "y": 354,
+        "wires": [
+            [
+                "c87a26fd1aca0f31"
+            ]
+        ]
+    },
+    {
+        "id": "c87a26fd1aca0f31",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Check Authorization",
+        "func": "// รับผลลัพธ์จาก MySQL\nconst result = msg.payload;\n\n// ตรวจสอบว่ามีข้อมูลโครงการหรือไม่\nif (!result || (Array.isArray(result) && result.length === 0)) {\n    // ไม่พบข้อมูลโครงการ\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบข้อมูลโครงการ\"\n    };\n    return [null, msg];\n}\n\n// ถ้ามีข้อมูลโครงการในรูปแบบ array\nconst proposal = Array.isArray(result) ? result[0] : result;\n\n// เก็บข้อมูลโครงการไว้ใช้ต่อ\nmsg.proposal = proposal;\n\n// ตรวจสอบสิทธิ์การเข้าถึง (ต้องเป็นเจ้าของโครงการหรือแอดมิน)\nif (proposal.user_id === msg.userId) {\n    // ผ่านการตรวจสอบสิทธิ์ - เป็นเจ้าของโครงการ\n    msg.topic = \"SELECT role FROM users WHERE id = ?\";\n    msg.payload = [msg.userId];\n    return [msg, null];\n} else {\n    // ตรวจสอบว่าเป็นแอดมินหรือไม่\n    msg.topic = \"SELECT role FROM users WHERE id = ?\";\n    msg.payload = [msg.userId];\n    return [msg, null];\n}\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 369,
+        "y": 534,
+        "wires": [
+            [
+                "60ff9a9ca4cc5ac3"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "60ff9a9ca4cc5ac3",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Check User Role",
+        "x": 589,
+        "y": 534,
+        "wires": [
+            [
+                "78d17c42ab48a46d"
+            ]
+        ]
+    },
+    {
+        "id": "78d17c42ab48a46d",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Role",
+        "func": "// รับผลลัพธ์จาก MySQL\nconst result = msg.payload;\n\n// ตรวจสอบว่ามีข้อมูลหรือไม่\nif (!result || (Array.isArray(result) && result.length === 0)) {\n    // ไม่พบข้อมูลผู้ใช้\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบข้อมูลผู้ใช้\"\n    };\n    return [null, msg];\n}\n\n// ดึงข้อมูล role\nconst userRole = Array.isArray(result) ? result[0].role : result.role;\n\n// ตรวจสอบว่าเป็นเจ้าของโครงการหรือมีสิทธิ์แอดมิน/เจ้าหน้าที่\nif (msg.proposal.user_id === msg.userId || userRole === 'admin' || userRole === 'staff') {\n    // ผ่านการตรวจสอบสิทธิ์\n    // ดึงประวัติสถานะของโครงการ\n    msg.topic = \"SELECT psh.*, u.username FROM project_status_history psh LEFT JOIN users u ON psh.updated_by = u.id WHERE psh.id = ? ORDER BY psh.status_date DESC\";\n    msg.payload = [msg.proposal.id];\n    return [msg, null];\n} else {\n    // ไม่มีสิทธิ์เข้าถึงข้อมูลโครงการ\n    msg.statusCode = 403;\n    msg.payload = {\n        success: false,\n        message: \"คุณไม่มีสิทธิ์เข้าถึงข้อมูลโครงการนี้\"\n    };\n    return [null, msg];\n}\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 769,
+        "y": 534,
+        "wires": [
+            [
+                "64bf3e0e4f9bf59e"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "64bf3e0e4f9bf59e",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Status History",
+        "x": 1009,
+        "y": 534,
+        "wires": [
+            [
+                "c9ca5fd31c75f0e5",
+                "5339fd7abfd7bbcb"
+            ]
+        ]
+    },
+    {
+        "id": "c9ca5fd31c75f0e5",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Get Notifications",
+        "func": "// เก็บประวัติสถานะเพื่อใช้ต่อไป\nmsg.statusHistory = msg.payload;\n\n// ดึงการแจ้งเตือนของโครงการสำหรับผู้ใช้\nmsg.topic = \"SELECT * FROM status_notifications WHERE proposal_id = ? AND user_id = ? ORDER BY created_at DESC LIMIT 10\";\nmsg.payload = [msg.proposal.id, msg.userId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1209,
+        "y": 534,
+        "wires": [
+            [
+                "7eb9d8dd15a3dece"
+            ]
+        ]
+    },
+    {
+        "id": "7eb9d8dd15a3dece",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Notifications",
+        "x": 359,
+        "y": 594,
+        "wires": [
+            [
+                "4d6a75f83a96f33a"
+            ]
+        ]
+    },
+    {
+        "id": "4d6a75f83a96f33a",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Prepare Response",
+        "func": "// เก็บการแจ้งเตือนเพื่อใช้ต่อไป\nmsg.notifications = msg.payload;\n\n// ตรวจสอบว่าต้องดึงข้อมูลข้อเสนอแนะหรือไม่\nif (msg.proposal.status === 'rejected') {\n    // ดึงข้อมูลข้อเสนอแนะจากคณะกรรมการ\n    msg.topic = \"SELECT pf.*, u.username as reviewer_name FROM proposal_feedback pf LEFT JOIN users u ON pf.reviewer_id = u.id WHERE pf.proposal_id = ? ORDER BY pf.created_at DESC LIMIT 1\";\n    msg.payload = [msg.proposal.id];\n    return [msg, null];\n} else if (msg.proposal.status === 'preparing' || msg.proposal.status === 'approved') {\n    // ดึงข้อมูลไฟล์นำเสนอ\n    msg.topic = \"SELECT * FROM presentation_files WHERE proposal_id = ? ORDER BY uploaded_at DESC\";\n    msg.payload = [msg.proposal.id];\n    return [null, msg];\n} else {\n    // ไม่จำเป็นต้องดึงข้อมูลเพิ่มเติม\n    return [null, null, msg];\n}\n",
+        "outputs": 3,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 579,
+        "y": 594,
+        "wires": [
+            [
+                "2f45c2b5f3f17ad5"
+            ],
+            [
+                "d3dee17752cd6c6c"
+            ],
+            [
+                "26daf9cb33c2dff4"
+            ]
+        ]
+    },
+    {
+        "id": "2f45c2b5f3f17ad5",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Feedback",
+        "x": 829,
+        "y": 594,
+        "wires": [
+            [
+                "73d11c15c8ba7eda"
+            ]
+        ]
+    },
+    {
+        "id": "d3dee17752cd6c6c",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Presentation Files",
+        "x": 849,
+        "y": 654,
+        "wires": [
+            [
+                "73d11c15c8ba7eda"
+            ]
+        ]
+    },
+    {
+        "id": "73d11c15c8ba7eda",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Build Final Response",
+        "func": "// กำหนดข้อมูลเพิ่มเติมตามประเภท\nif (msg.topic.includes('proposal_feedback')) {\n    msg.feedback = msg.payload;\n} else if (msg.topic.includes('presentation_files')) {\n    msg.presentationFiles = msg.payload;\n}\n\n// สร้าง response หลัก\nconst response = {\n    success: true,\n    proposal: msg.proposal,\n    statusHistory: msg.statusHistory || [],\n    notifications: msg.notifications || []\n};\n\n// เพิ่มข้อมูลอื่นๆ ตามที่มี\nif (msg.feedback) {\n    response.feedback = Array.isArray(msg.feedback) && msg.feedback.length > 0 ? \n                        msg.feedback[0] : msg.feedback;\n}\n\nif (msg.presentationFiles) {\n    response.presentationFiles = msg.presentationFiles;\n}\n\n// กำหนด HTTP response headers\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': '*'\n};\n\nmsg.payload = response;\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1089,
+        "y": 654,
+        "wires": [
+            [
+                "26daf9cb33c2dff4"
+            ]
+        ]
+    },
+    {
+        "id": "26daf9cb33c2dff4",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 1359,
+        "y": 594,
+        "wires": []
+    },
+    {
+        "id": "1e09733fb29d53c8",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "Error Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*"
+        },
+        "x": 1000,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "b02ef8f4a2981271",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "GET /api/proposals/user",
+        "url": "/api/proposals/user",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 309,
+        "y": 714,
+        "wires": [
+            [
+                "34c04f40a5cb4a31",
+                "5bf1aad1319fe6a5"
+            ]
+        ]
+    },
+    {
+        "id": "34c04f40a5cb4a31",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Auth Check",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        message: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 569,
+        "y": 734,
+        "wires": [
+            [
+                "2f91e91d38ef6c53"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "2f91e91d38ef6c53",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Token",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 769,
+        "y": 734,
+        "wires": [
+            [
+                "0e8431ddbf5b5a9a"
+            ]
+        ]
+    },
+    {
+        "id": "0e8431ddbf5b5a9a",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Prepare User Query",
+        "func": "// เก็บข้อมูล userId\nmsg.userId = msg.payload.userId;\n\n// ดึงข้อมูล user role\nmsg.topic = \"SELECT role FROM users WHERE id = ?\";\nmsg.payload = [msg.userId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 949,
+        "y": 734,
+        "wires": [
+            [
+                "a095f7df9b11d62f"
+            ]
+        ]
+    },
+    {
+        "id": "a095f7df9b11d62f",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get User Role",
+        "x": 1149,
+        "y": 734,
+        "wires": [
+            [
+                "1cee654c4be41f22"
+            ]
+        ]
+    },
+    {
+        "id": "1cee654c4be41f22",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Prepare Proposals Query",
+        "func": "// ดึงข้อมูล role จากผลลัพธ์\nconst result = msg.payload;\nconst role = Array.isArray(result) && result.length > 0 ? result[0].role : 'user';\n\nif (role === 'admin' || role === 'staff') {\n    // แอดมินหรือเจ้าหน้าที่ดูได้ทุกโครงการ\n    msg.topic = \"SELECT p.*, u.username FROM proposals p JOIN users u ON p.user_id = u.id ORDER BY p.updated_at DESC\";\n    msg.payload = [];\n} else {\n    // ผู้ใช้ทั่วไปดูได้เฉพาะโครงการของตัวเอง\n    msg.topic = \"SELECT * FROM proposals WHERE user_id = ? ORDER BY updated_at DESC\";\n    msg.payload = [msg.userId];\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 369,
+        "y": 794,
+        "wires": [
+            [
+                "b8a4a3c9c59e057a"
+            ]
+        ]
+    },
+    {
+        "id": "b8a4a3c9c59e057a",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Proposals",
+        "x": 599,
+        "y": 794,
+        "wires": [
+            [
+                "09b01dca77bbad94"
+            ]
+        ]
+    },
+    {
+        "id": "09b01dca77bbad94",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Format Response",
+        "func": "// ตรวจสอบผลลัพธ์\nconst proposals = msg.payload || [];\n\n// สร้าง response\nmsg.payload = {\n    success: true,\n    proposals: proposals\n};\n\n// กำหนด headers\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': '*'\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 819,
+        "y": 794,
+        "wires": [
+            [
+                "4b1ea81dce7063a4"
+            ]
+        ]
+    },
+    {
+        "id": "4b1ea81dce7063a4",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 1039,
+        "y": 794,
+        "wires": []
+    },
+    {
+        "id": "c7c9a339ede3e764",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "PUT /api/proposals/:id/status",
+        "url": "/api/proposals/:id/status",
+        "method": "put",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 389,
+        "y": 874,
+        "wires": [
+            [
+                "d2d1a8a51ce6a5ba"
+            ]
+        ]
+    },
+    {
+        "id": "d2d1a8a51ce6a5ba",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Auth Check",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        message: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 629,
+        "y": 874,
+        "wires": [
+            [
+                "1ecd13fc34c5d37d"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "1ecd13fc34c5d37d",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Token",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 849,
+        "y": 874,
+        "wires": [
+            [
+                "a6bf3dbbab0af09a"
+            ]
+        ]
+    },
+    {
+        "id": "a6bf3dbbab0af09a",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Check Admin Rights",
+        "func": "// เก็บข้อมูล userId และ proposalId\nmsg.userId = msg.payload.userId;\nmsg.proposalId = msg.req.params.id;\n\n// ตรวจสอบข้อมูลที่ส่งเข้ามา\nconst data = msg.req.body;\n\nif (!data || !data.status || !['waiting', 'reviewing', 'preparing', 'approved', 'rejected'].includes(data.status)) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"ข้อมูลสถานะไม่ถูกต้อง\"\n    };\n    return [null, msg];\n}\n\n// เก็บข้อมูลสถานะและข้อเสนอแนะ\nmsg.newStatus = data.status;\nmsg.remarks = data.remarks || null;\nmsg.feedback = data.feedback || null;\n\n// ตรวจสอบสิทธิ์การเข้าถึง (ต้องเป็นแอดมินหรือเจ้าหน้าที่เท่านั้น)\nmsg.topic = \"SELECT role FROM users WHERE id = ?\";\nmsg.payload = [msg.userId];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1079,
+        "y": 874,
+        "wires": [
+            [
+                "a1c6d5aa1fe86c86"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "a1c6d5aa1fe86c86",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Check User Role",
+        "x": 369,
+        "y": 934,
+        "wires": [
+            [
+                "03a3cb0293fdf3ef"
+            ]
+        ]
+    },
+    {
+        "id": "03a3cb0293fdf3ef",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Admin Rights",
+        "func": "// ตรวจสอบผลลัพธ์\nconst result = msg.payload;\n\n// ตรวจสอบสิทธิ์\nif (!result || !Array.isArray(result) || result.length === 0) {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบข้อมูลผู้ใช้\"\n    };\n    return [null, msg];\n}\n\nconst role = result[0].role;\n\n// ต้องเป็นแอดมินหรือเจ้าหน้าที่เท่านั้น\nif (role !== 'admin' && role !== 'staff') {\n    msg.statusCode = 403;\n    msg.payload = {\n        success: false,\n        message: \"คุณไม่มีสิทธิ์อัพเดทสถานะโครงการ\"\n    };\n    return [null, msg];\n}\n\n// ดึงข้อมูลโครงการเพื่อตรวจสอบสถานะปัจจุบัน\nmsg.topic = \"SELECT * FROM proposals WHERE id = ?\";\nmsg.payload = [msg.proposalId];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 609,
+        "y": 934,
+        "wires": [
+            [
+                "9c89a92c73b33a27"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "9c89a92c73b33a27",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Proposal",
+        "x": 849,
+        "y": 934,
+        "wires": [
+            [
+                "e8a4e7e358af51ac"
+            ]
+        ]
+    },
+    {
+        "id": "e8a4e7e358af51ac",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Update Proposal Status",
+        "func": "// ตรวจสอบผลลัพธ์\nconst result = msg.payload;\n\n// ตรวจสอบว่ามีข้อมูลโครงการหรือไม่\nif (!result || (Array.isArray(result) && result.length === 0)) {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบข้อมูลโครงการ\"\n    };\n    return [null, msg];\n}\n\n// ดึงข้อมูลโครงการ\nconst proposal = Array.isArray(result) ? result[0] : result;\n\n// เก็บข้อมูลเพื่อใช้ต่อไป\nmsg.proposal = proposal;\n\n// อัพเดทสถานะโครงการ\nmsg.topic = \"UPDATE proposals SET status = ?, updated_at = NOW() WHERE id = ?\";\nmsg.payload = [msg.newStatus, msg.proposalId];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1089,
+        "y": 934,
+        "wires": [
+            [
+                "73b13afa6b43e96c"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "73b13afa6b43e96c",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Update Status",
+        "x": 369,
+        "y": 994,
+        "wires": [
+            [
+                "74b3d7dde2cf1c54"
+            ]
+        ]
+    },
+    {
+        "id": "74b3d7dde2cf1c54",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Create Status History",
+        "func": "// บันทึกประวัติการเปลี่ยนสถานะ\nmsg.topic = \"INSERT INTO project_status_history (proposal_id, status, remarks, updated_by) VALUES (?, ?, ?, ?)\";\nmsg.payload = [msg.proposalId, msg.newStatus, msg.remarks, msg.userId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 599,
+        "y": 994,
+        "wires": [
+            [
+                "5d86f0e3ebe81af5"
+            ]
+        ]
+    },
+    {
+        "id": "5d86f0e3ebe81af5",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Save History",
+        "x": 809,
+        "y": 994,
+        "wires": [
+            [
+                "c20a15c0d3db3bfb"
+            ]
+        ]
+    },
+    {
+        "id": "c20a15c0d3db3bfb",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Create Notification",
+        "func": "// สร้างข้อความแจ้งเตือนตามสถานะ\nlet notificationMessage = \"\";\nswitch (msg.newStatus) {\n    case 'waiting':\n        notificationMessage = \"โครงการของคุณได้ถูกเปลี่ยนสถานะเป็น 'รอการตรวจรับ'\";\n        break;\n    case 'reviewing':\n        notificationMessage = \"เจ้าหน้าที่ได้ตรวจรับโครงการของคุณเรียบร้อยแล้ว และอยู่ระหว่างการพิจารณาเพื่อนำเสนอต่อคณะกรรมการ\";\n        break;\n    case 'preparing':\n        notificationMessage = \"โครงการของคุณได้รับการคัดเลือกให้นำเสนอต่อคณะกรรมการ กรุณาเตรียมข้อมูลสำหรับการนำเสนอตามแบบฟอร์มที่กำหนด\";\n        break;\n    case 'approved':\n        notificationMessage = \"ยินดีด้วย! โครงการของคุณได้รับการอนุมัติเรียบร้อยแล้ว ท่านจะได้รับการติดต่อเพื่อดำเนินการในขั้นตอนต่อไป\";\n        break;\n    case 'rejected':\n        notificationMessage = \"ขออภัย โครงการของคุณไม่ผ่านการอนุมัติในครั้งนี้ กรุณาตรวจสอบข้อเสนอแนะจากคณะกรรมการ\";\n        break;\n}\n\n// สร้างการแจ้งเตือนสำหรับเจ้าของโครงการ\nmsg.topic = \"INSERT INTO status_notifications (user_id, proposal_id, status, message) VALUES (?, ?, ?, ?)\";\nmsg.payload = [msg.proposal.user_id, msg.proposalId, msg.newStatus, notificationMessage];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1009,
+        "y": 994,
+        "wires": [
+            [
+                "e9c66a343fa60c0e"
+            ]
+        ]
+    },
+    {
+        "id": "e9c66a343fa60c0e",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Save Notification",
+        "x": 1239,
+        "y": 994,
+        "wires": [
+            [
+                "6b85d17f41cdd7af"
+            ]
+        ]
+    },
+    {
+        "id": "6b85d17f41cdd7af",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Check for Feedback",
+        "func": "// ตรวจสอบว่าต้องบันทึกข้อเสนอแนะหรือไม่\nif (msg.newStatus === 'rejected' && msg.feedback) {\n    // บันทึกข้อเสนอแนะจากคณะกรรมการ\n    msg.topic = \"INSERT INTO proposal_feedback (proposal_id, feedback, reviewer_id) VALUES (?, ?, ?)\";\n    msg.payload = [msg.proposalId, msg.feedback, msg.userId];\n    return [msg, null];\n} else {\n    // ไม่ต้องบันทึกข้อเสนอแนะ - ส่ง response\n    msg.payload = {\n        success: true,\n        message: \"อัพเดทสถานะโครงการเรียบร้อยแล้ว\",\n        status: msg.newStatus\n    };\n    msg.headers = {\n        'Content-Type': 'application/json',\n        'Access-Control-Allow-Origin': '*'\n    };\n    return [null, msg];\n}\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 369,
+        "y": 1054,
+        "wires": [
+            [
+                "1ebc19eef4c5be86"
+            ],
+            [
+                "6ce2bff2fd1f3d88"
+            ]
+        ]
+    },
+    {
+        "id": "1ebc19eef4c5be86",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Save Feedback",
+        "x": 599,
+        "y": 1054,
+        "wires": [
+            [
+                "f6a07c2a0f6ca095"
+            ]
+        ]
+    },
+    {
+        "id": "f6a07c2a0f6ca095",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Final Response",
+        "func": "// ตอบกลับหลังบันทึกข้อเสนอแนะ\nmsg.payload = {\n    success: true,\n    message: \"อัพเดทสถานะโครงการและบันทึกข้อเสนอแนะเรียบร้อยแล้ว\",\n    status: msg.newStatus\n};\n\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': '*'\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 809,
+        "y": 1054,
+        "wires": [
+            [
+                "6ce2bff2fd1f3d88"
+            ]
+        ]
+    },
+    {
+        "id": "6ce2bff2fd1f3d88",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 1039,
+        "y": 1054,
+        "wires": []
+    },
+    {
+        "id": "a5b8e0b0e9a98aef",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "POST /api/proposals/:id/presentation",
+        "url": "/api/proposals/:id/presentation",
+        "method": "post",
+        "upload": true,
+        "swaggerDoc": "",
+        "x": 429,
+        "y": 1134,
+        "wires": [
+            [
+                "2e55d0aa1a50f3fc"
+            ]
+        ]
+    },
+    {
+        "id": "2e55d0aa1a50f3fc",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Auth Check",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        message: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 689,
+        "y": 1134,
+        "wires": [
+            [
+                "f08ba73e74b70c2f"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "f08ba73e74b70c2f",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Token",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 889,
+        "y": 1134,
+        "wires": [
+            [
+                "86da8b35ced35c6d"
+            ]
+        ]
+    },
+    {
+        "id": "86da8b35ced35c6d",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Check Proposal",
+        "func": "// เก็บข้อมูล userId และ proposalId\nmsg.userId = msg.payload.userId;\nmsg.proposalId = msg.req.params.id;\n\n// ตรวจสอบไฟล์ที่อัพโหลด\nif (!msg.req.files || !msg.req.files.presentationFile) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบไฟล์ที่อัพโหลด\"\n    };\n    return [null, msg];\n}\n\n// เก็บข้อมูลไฟล์\nmsg.fileInfo = msg.req.files.presentationFile[0];\n\n// ตรวจสอบขนาดไฟล์ (ไม่เกิน 15MB)\nconst maxFileSize = 15 * 1024 * 1024; // 15MB\nif (msg.fileInfo.size > maxFileSize) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"ขนาดไฟล์เกิน 15MB\"\n    };\n    return [null, msg];\n}\n\n// ตรวจสอบประเภทไฟล์\nconst allowedFileTypes = [\n    'application/vnd.ms-powerpoint',\n    'application/vnd.openxmlformats-officedocument.presentationml.presentation',\n    'application/pdf'\n];\n\nif (!allowedFileTypes.includes(msg.fileInfo.mimetype)) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"รูปแบบไฟล์ไม่รองรับ รองรับเฉพาะไฟล์ .ppt, .pptx, .pdf\"\n    };\n    return [null, msg];\n}\n\n// ดึงข้อมูลโครงการเพื่อตรวจสอบสถานะและสิทธิ์\nmsg.topic = \"SELECT * FROM proposals WHERE id = ?\";\nmsg.payload = [msg.proposalId];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1099,
+        "y": 1134,
+        "wires": [
+            [
+                "e64abaee5a6c1ba5"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "e64abaee5a6c1ba5",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Proposal",
+        "x": 369,
+        "y": 1194,
+        "wires": [
+            [
+                "21f6aceff9bf9aec"
+            ]
+        ]
+    },
+    {
+        "id": "21f6aceff9bf9aec",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Check Authorization",
+        "func": "// ตรวจสอบผลลัพธ์\nconst result = msg.payload;\n\n// ตรวจสอบว่ามีข้อมูลโครงการหรือไม่\nif (!result || (Array.isArray(result) && result.length === 0)) {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบข้อมูลโครงการ\"\n    };\n    return [null, msg];\n}\n\n// ดึงข้อมูลโครงการ\nconst proposal = Array.isArray(result) ? result[0] : result;\n\n// ตรวจสอบสิทธิ์การเข้าถึง (ต้องเป็นเจ้าของโครงการ)\nif (proposal.user_id !== msg.userId) {\n    msg.statusCode = 403;\n    msg.payload = {\n        success: false,\n        message: \"คุณไม่มีสิทธิ์อัพโหลดไฟล์สำหรับโครงการนี้\"\n    };\n    return [null, msg];\n}\n\n// ตรวจสอบว่าโครงการอยู่ในสถานะที่อัพโหลดไฟล์นำเสนอได้\nif (proposal.status !== 'preparing') {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        message: \"โครงการไม่อยู่ในสถานะที่สามารถอัพโหลดไฟล์นำเสนอได้\"\n    };\n    return [null, msg];\n}\n\n// เก็บข้อมูลโครงการไว้ใช้ต่อ\nmsg.proposal = proposal;\n\n// สร้างชื่อไฟล์ใหม่ป้องกันการซ้ำ\nconst fileExtension = msg.fileInfo.originalname.split('.').pop();\nconst timestamp = Date.now();\nconst random = Math.floor(Math.random() * 10000);\nconst newFileName = `presentation_${msg.proposalId}_${timestamp}_${random}.${fileExtension}`;\n\n// กำหนด path สำหรับเก็บไฟล์\nconst uploadDir = '/sidfile/presentations/';\nmsg.filePath = uploadDir + newFileName;\n\n// อัพโหลดไฟล์ (ดำเนินการในโค้ด Node-RED ไม่ได้โดยตรง ให้ใช้ node 'file' ของ Node-RED)\nmsg.originalFilename = msg.fileInfo.originalname;\nmsg.newFilename = newFileName;\nmsg.fileMimeType = msg.fileInfo.mimetype;\nmsg.fileBuffer = msg.fileInfo.buffer;\n\n// ส่งต่อไปยัง file node\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 589,
+        "y": 1194,
+        "wires": [
+            [
+                "00a1f71e22f91f90"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "00a1f71e22f91f90",
+        "type": "file",
+        "z": "f19ba3457d2c8940",
+        "name": "Save File",
+        "filename": "filename",
+        "filenameType": "msg",
+        "appendNewline": false,
+        "createDir": true,
+        "overwriteFile": "true",
+        "encoding": "none",
+        "x": 819,
+        "y": 1194,
+        "wires": [
+            [
+                "75a61df5384e037d"
+            ]
+        ],
+        "outputLabels": [
+            "file saved"
+        ]
+    },
+    {
+        "id": "75a61df5384e037d",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Save to Database",
+        "func": "// บันทึกข้อมูลไฟล์ลงฐานข้อมูล\nmsg.topic = \"INSERT INTO presentation_files (proposal_id, file_original, file_path, file_type) VALUES (?, ?, ?, ?)\";\nmsg.payload = [\n    msg.proposalId,\n    msg.originalFilename,\n    msg.filePath,\n    msg.fileMimeType\n];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1029,
+        "y": 1194,
+        "wires": [
+            [
+                "e1fa77f6a6fca6df"
+            ]
+        ]
+    },
+    {
+        "id": "e1fa77f6a6fca6df",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Save File Info",
+        "x": 1229,
+        "y": 1194,
+        "wires": [
+            [
+                "9e2acac57f26bc5e"
+            ]
+        ]
+    },
+    {
+        "id": "9e2acac57f26bc5e",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Create History",
+        "func": "// บันทึกประวัติการอัพโหลดไฟล์นำเสนอ\nmsg.topic = \"INSERT INTO project_status_history (proposal_id, status, remarks, updated_by) VALUES (?, ?, ?, ?)\";\nmsg.payload = [\n    msg.proposalId,\n    'preparing',\n    `อัพโหลดเอกสารนำเสนอ: ${msg.originalFilename}`,\n    msg.userId\n];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 369,
+        "y": 1254,
+        "wires": [
+            [
+                "6fbae8b172c9a8b7"
+            ]
+        ]
+    },
+    {
+        "id": "6fbae8b172c9a8b7",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Save History",
+        "x": 579,
+        "y": 1254,
+        "wires": [
+            [
+                "9d44ca41d45bedc2"
+            ]
+        ]
+    },
+    {
+        "id": "9d44ca41d45bedc2",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Create Notification",
+        "func": "// สร้างการแจ้งเตือนสำหรับเจ้าของโครงการ\nmsg.topic = \"INSERT INTO status_notifications (user_id, proposal_id, status, message) VALUES (?, ?, ?, ?)\";\nmsg.payload = [\n    msg.userId,\n    msg.proposalId,\n    'preparing',\n    'อัพโหลดเอกสารนำเสนอสำเร็จ เจ้าหน้าที่จะตรวจสอบเอกสารและติดต่อกลับภายใน 7 วันทำการ'\n];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 809,
+        "y": 1254,
+        "wires": [
+            [
+                "8fb5abfb98e1f0c0"
+            ]
+        ]
+    },
+    {
+        "id": "8fb5abfb98e1f0c0",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Save Notification",
+        "x": 1049,
+        "y": 1254,
+        "wires": [
+            [
+                "b65e95b55a9c26e5"
+            ]
+        ]
+    },
+    {
+        "id": "b65e95b55a9c26e5",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Notify Staff",
+        "func": "// ดึงรายชื่อผู้ดูแลระบบและเจ้าหน้าที่\nmsg.topic = \"SELECT id FROM users WHERE role IN ('admin', 'staff')\";\nmsg.payload = [];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1259,
+        "y": 1254,
+        "wires": [
+            [
+                "d9ca3e5b28d82dc4"
+            ]
+        ]
+    },
+    {
+        "id": "d9ca3e5b28d82dc4",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Staff",
+        "x": 359,
+        "y": 1314,
+        "wires": [
+            [
+                "36923a6fe76aad1c"
+            ]
+        ]
+    },
+    {
+        "id": "36923a6fe76aad1c",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Create Staff Notifications",
+        "func": "// ตรวจสอบผลลัพธ์\nconst staffs = msg.payload || [];\n\n// ถ้าไม่มีเจ้าหน้าที่ ให้ส่ง response เลย\nif (!Array.isArray(staffs) || staffs.length === 0) {\n    // ตอบกลับผู้ใช้\n    msg.payload = {\n        success: true,\n        message: \"อัพโหลดเอกสารนำเสนอเรียบร้อยแล้ว\",\n        file: {\n            original_name: msg.originalFilename,\n            path: msg.filePath,\n            type: msg.fileMimeType\n        }\n    };\n    \n    msg.headers = {\n        'Content-Type': 'application/json',\n        'Access-Control-Allow-Origin': '*'\n    };\n    \n    return [null, msg];\n}\n\n// เก็บข้อมูลรายชื่อเจ้าหน้าที่\nmsg.staffs = staffs;\nmsg.currentStaffIndex = 0;\n\n// สร้างการแจ้งเตือนสำหรับเจ้าหน้าที่คนแรก\nmsg.topic = \"INSERT INTO status_notifications (user_id, proposal_id, status, message) VALUES (?, ?, ?, ?)\";\nmsg.payload = [\n    staffs[0].id,\n    msg.proposalId,\n    'preparing',\n    `มีการอัพโหลดเอกสารนำเสนอใหม่สำหรับโครงการ #${msg.proposalId}`\n];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 589,
+        "y": 1314,
+        "wires": [
+            [
+                "f9febbaafc7dc825"
+            ],
+            [
+                "8e5a00a80b5f9cd9"
+            ]
+        ]
+    },
+    {
+        "id": "f9febbaafc7dc825",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Save Staff Notification",
+        "x": 859,
+        "y": 1314,
+        "wires": [
+            [
+                "c32e3f2b1fbf3d79"
+            ]
+        ]
+    },
+    {
+        "id": "c32e3f2b1fbf3d79",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Check More Staff",
+        "func": "// เพิ่ม index เพื่อตรวจสอบเจ้าหน้าที่คนต่อไป\nmsg.currentStaffIndex++;\n\n// ตรวจสอบว่ายังมีเจ้าหน้าที่ที่ต้องสร้างการแจ้งเตือนหรือไม่\nif (msg.currentStaffIndex < msg.staffs.length) {\n    // สร้างการแจ้งเตือนสำหรับเจ้าหน้าที่คนถัดไป\n    msg.topic = \"INSERT INTO status_notifications (user_id, proposal_id, status, message) VALUES (?, ?, ?, ?)\";\n    msg.payload = [\n        msg.staffs[msg.currentStaffIndex].id,\n        msg.proposalId,\n        'preparing',\n        `มีการอัพโหลดเอกสารนำเสนอใหม่สำหรับโครงการ #${msg.proposalId}`\n    ];\n    return [msg, null];\n} else {\n    // สร้างการแจ้งเตือนให้ครบทุกคนแล้ว - ส่ง response\n    msg.payload = {\n        success: true,\n        message: \"อัพโหลดเอกสารนำเสนอเรียบร้อยแล้ว\",\n        file: {\n            original_name: msg.originalFilename,\n            path: msg.filePath,\n            type: msg.fileMimeType\n        }\n    };\n    \n    msg.headers = {\n        'Content-Type': 'application/json',\n        'Access-Control-Allow-Origin': '*'\n    };\n    \n    return [null, msg];\n}\n",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1099,
+        "y": 1314,
+        "wires": [
+            [
+                "f9febbaafc7dc825"
+            ],
+            [
+                "8e5a00a80b5f9cd9"
+            ]
+        ]
+    },
+    {
+        "id": "8e5a00a80b5f9cd9",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 859,
+        "y": 1374,
+        "wires": []
+    },
+    {
+        "id": "c42c8aab17c877bc",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "GET /api/notifications/user",
+        "url": "/api/notifications/user",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 389,
+        "y": 1434,
+        "wires": [
+            [
+                "fb6dd28a77e13c9c"
+            ]
+        ]
+    },
+    {
+        "id": "fb6dd28a77e13c9c",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Auth Check",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        message: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 619,
+        "y": 1434,
+        "wires": [
+            [
+                "7f6b6cd0b3c7fefb"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "7f6b6cd0b3c7fefb",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Token",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 829,
+        "y": 1434,
+        "wires": [
+            [
+                "90dc87c7d10eee3c"
+            ]
+        ]
+    },
+    {
+        "id": "90dc87c7d10eee3c",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Prepare Query",
+        "func": "// เก็บข้อมูล userId\nmsg.userId = msg.payload.userId;\n\n// ดึงการแจ้งเตือนของผู้ใช้\nmsg.topic = \"SELECT * FROM status_notifications WHERE user_id = ? ORDER BY created_at DESC LIMIT 20\";\nmsg.payload = [msg.userId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1039,
+        "y": 1434,
+        "wires": [
+            [
+                "1b7e96a1d0069423"
+            ]
+        ]
+    },
+    {
+        "id": "1b7e96a1d0069423",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Notifications",
+        "x": 1259,
+        "y": 1434,
+        "wires": [
+            [
+                "4db21d8ffa6626db"
+            ]
+        ]
+    },
+    {
+        "id": "4db21d8ffa6626db",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Format Response",
+        "func": "// ตรวจสอบผลลัพธ์\nconst notifications = msg.payload || [];\n\n// สร้าง response\nmsg.payload = {\n    success: true,\n    notifications: notifications\n};\n\n// กำหนด headers\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': '*'\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 369,
+        "y": 1494,
+        "wires": [
+            [
+                "dff6c19d4089d18d"
+            ]
+        ]
+    },
+    {
+        "id": "dff6c19d4089d18d",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 599,
+        "y": 1494,
+        "wires": []
+    },
+    {
+        "id": "fa0c77c01a9bdd3f",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "PUT /api/notifications/read/:id",
+        "url": "/api/notifications/read/:id-x",
+        "method": "put",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 180,
+        "y": 1560,
+        "wires": [
+            [
+                "3e6cbacbf31e3e05"
+            ]
+        ]
+    },
+    {
+        "id": "3e6cbacbf31e3e05",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Auth Check",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        message: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 659,
+        "y": 1554,
+        "wires": [
+            [
+                "5e1b5eafae5ae7ef"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "5e1b5eafae5ae7ef",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Token",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 889,
+        "y": 1554,
+        "wires": [
+            [
+                "f47d7ed0b3a8e12f"
+            ]
+        ]
+    },
+    {
+        "id": "f47d7ed0b3a8e12f",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Prepare Update",
+        "func": "// เก็บข้อมูล userId และ notificationId\nmsg.userId = msg.payload.userId;\nmsg.notificationId = msg.req.params.id;\n\n// อัพเดทสถานะการอ่านการแจ้งเตือน\nmsg.topic = \"UPDATE status_notifications SET is_read = 1 WHERE id = ? AND user_id = ?\";\nmsg.payload = [msg.notificationId, msg.userId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1119,
+        "y": 1554,
+        "wires": [
+            [
+                "2a50a2c99ea6aeff"
+            ]
+        ]
+    },
+    {
+        "id": "2a50a2c99ea6aeff",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Update Notification",
+        "x": 379,
+        "y": 1614,
+        "wires": [
+            [
+                "f16e8e3fbe4fc507"
+            ]
+        ]
+    },
+    {
+        "id": "f16e8e3fbe4fc507",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Format Response",
+        "func": "// ตรวจสอบผลลัพธ์\nif (msg.payload.affectedRows === 0) {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบการแจ้งเตือนหรือคุณไม่มีสิทธิ์\"\n    };\n} else {\n    msg.payload = {\n        success: true,\n        message: \"ทำเครื่องหมายว่าอ่านแล้ว\"\n    };\n}\n\n// กำหนด headers\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': '*'\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 619,
+        "y": 1614,
+        "wires": [
+            [
+                "07f908a5fc0ddd4d"
+            ]
+        ]
+    },
+    {
+        "id": "07f908a5fc0ddd4d",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 859,
+        "y": 1614,
+        "wires": []
+    },
+    {
+        "id": "60747d51d52d5b1a",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "PUT /api/notifications/read-all",
+        "url": "/api/notifications/read-all",
+        "method": "put",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 140,
+        "y": 1760,
+        "wires": [
+            [
+                "f444c72d81bd4608"
+            ]
+        ]
+    },
+    {
+        "id": "f444c72d81bd4608",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Auth Check",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        message: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 369,
+        "y": 1674,
+        "wires": [
+            [
+                "d5ba566afc123a46"
+            ],
+            [
+                "1e09733fb29d53c8"
+            ]
+        ]
+    },
+    {
+        "id": "d5ba566afc123a46",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "Verify Token",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 569,
+        "y": 1674,
+        "wires": [
+            [
+                "5f92775b8eabcecf"
+            ]
+        ]
+    },
+    {
+        "id": "5f92775b8eabcecf",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Prepare Update",
+        "func": "// เก็บข้อมูล userId\nmsg.userId = msg.payload.userId;\n\n// อัพเดทสถานะการอ่านการแจ้งเตือนทั้งหมด\nmsg.topic = \"UPDATE status_notifications SET is_read = 1 WHERE user_id = ? AND is_read = 0\";\nmsg.payload = [msg.userId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 779,
+        "y": 1674,
+        "wires": [
+            [
+                "3e45fff19bdda69f"
+            ]
+        ]
+    },
+    {
+        "id": "3e45fff19bdda69f",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Update All Notifications",
+        "x": 1029,
+        "y": 1674,
+        "wires": [
+            [
+                "6b7e8a9fa1d9d79e"
+            ]
+        ]
+    },
+    {
+        "id": "6b7e8a9fa1d9d79e",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "Format Response",
+        "func": "// สร้าง response\nmsg.payload = {\n    success: true,\n    message: \"ทำเครื่องหมายว่าอ่านแล้วทั้งหมด\",\n    affectedRows: msg.payload.affectedRows || 0\n};\n\n// กำหนด headers\nmsg.headers = {\n    'Content-Type': 'application/json',\n    'Access-Control-Allow-Origin': '*'\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 359,
+        "y": 1734,
+        "wires": [
+            [
+                "47cd3de6d68d27a3"
+            ]
+        ]
+    },
+    {
+        "id": "47cd3de6d68d27a3",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {},
+        "x": 599,
+        "y": 1734,
+        "wires": []
+    },
+    {
+        "id": "5bf1aad1319fe6a5",
+        "type": "debug",
+        "z": "f19ba3457d2c8940",
+        "name": "debug 7",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 519,
+        "y": 654,
+        "wires": []
+    },
+    {
+        "id": "a72ba4a95eed5a31",
+        "type": "debug",
+        "z": "f19ba3457d2c8940",
+        "name": "debug 8",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "true",
+        "targetType": "full",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 539,
+        "y": 334,
+        "wires": []
+    },
+    {
+        "id": "5339fd7abfd7bbcb",
+        "type": "debug",
+        "z": "f19ba3457d2c8940",
+        "name": "debug 9",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1139,
+        "y": 474,
+        "wires": []
+    },
+    {
+        "id": "http-getmyproposal",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "Get My Proposal",
+        "url": "/api/getmyproposal",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 480,
+        "y": 40,
+        "wires": [
+            [
+                "auth-check-getproposal"
+            ]
+        ]
+    },
+    {
+        "id": "auth-check-getproposal",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "ตรวจสอบ Token",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg];\n}\n\n// ดึง token จาก header\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 680,
+        "y": 40,
+        "wires": [
+            [
+                "jwt-verify-getproposal"
+            ],
+            [
+                "http-response-getproposal"
+            ]
+        ]
+    },
+    {
+        "id": "jwt-verify-getproposal",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 870,
+        "y": 40,
+        "wires": [
+            [
+                "get-proposal-data"
+            ]
+        ]
+    },
+    {
+        "id": "get-proposal-data",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "เตรียม Query",
+        "func": "const userId = msg.payload.userId;\n\n// ดึงข้อมูล proposal ล่าสุดของ user\nmsg.topic = \"SELECT p.*, u.username, u.email FROM proposals p LEFT JOIN users u ON p.user_id = u.id WHERE p.user_id = ? ORDER BY p.created_at DESC LIMIT 1\";\n\nmsg.payload = [userId];\nmsg.userId = userId;\n\nreturn msg;",
+        "outputs": 1,
+        "x": 1060,
+        "y": 40,
+        "wires": [
+            [
+                "mysql-get-proposal"
+            ]
+        ]
+    },
+    {
+        "id": "mysql-get-proposal",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Proposal",
+        "x": 1250,
+        "y": 40,
+        "wires": [
+            [
+                "check-proposal-exists"
+            ]
+        ]
+    },
+    {
+        "id": "check-proposal-exists",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "ตรวจสอบ Proposal",
+        "func": "const result = msg.payload;\n\nif (!result || result.length === 0) {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบข้อเสนอโครงการ\"\n    };\n    return [null, msg];\n}\n\nconst proposal = result[0];\nmsg.proposal = proposal;\nmsg.proposalId = proposal.id;\n\n// ดึงข้อมูลที่ปรึกษา\nmsg.topic = \"SELECT * FROM proposal_advisors WHERE proposal_id = ? ORDER BY id\";\nmsg.payload = [proposal.id];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "x": 1450,
+        "y": 40,
+        "wires": [
+            [
+                "mysql-get-advisors"
+            ],
+            [
+                "http-response-getproposal"
+            ]
+        ]
+    },
+    {
+        "id": "mysql-get-advisors",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Advisors",
+        "x": 1650,
+        "y": 40,
+        "wires": [
+            [
+                "prepare-status-history"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-status-history",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "เตรียมดึงประวัติสถานะ",
+        "func": "msg.advisors = msg.payload || [];\n\n// ดึงประวัติสถานะ\nmsg.topic = \"SELECT sh.*, u.username as updated_by_name FROM project_status_history sh LEFT JOIN users u ON sh.updated_by = u.id WHERE sh.proposal_id = ? ORDER BY sh.status_date DESC\";\nmsg.payload = [msg.proposalId];\n\nreturn msg;",
+        "outputs": 1,
+        "x": 1870,
+        "y": 40,
+        "wires": [
+            [
+                "mysql-get-status-history"
+            ]
+        ]
+    },
+    {
+        "id": "mysql-get-status-history",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Status History",
+        "x": 2110,
+        "y": 40,
+        "wires": [
+            [
+                "prepare-notifications"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-notifications",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "เตรียมดึงการแจ้งเตือน",
+        "func": "msg.statusHistory = msg.payload || [];\n\n// ถ้าไม่มีประวัติสถานะ ให้สร้างข้อมูลเริ่มต้น\nif (msg.statusHistory.length === 0) {\n    msg.statusHistory = [{\n        proposal_id: msg.proposalId,\n        status: msg.proposal.status,\n        status_date: msg.proposal.created_at,\n        remarks: 'ส่งข้อเสนอโครงการเรียบร้อยแล้ว',\n        updated_by_name: 'ระบบ'\n    }];\n}\n\n// ดึงการแจ้งเตือน\nmsg.topic = \"SELECT * FROM status_notifications WHERE user_id = ? AND proposal_id = ? ORDER BY created_at DESC\";\nmsg.payload = [msg.userId, msg.proposalId];\n\nreturn msg;",
+        "outputs": 1,
+        "x": 2320,
+        "y": 40,
+        "wires": [
+            [
+                "mysql-get-notifications"
+            ]
+        ]
+    },
+    {
+        "id": "mysql-get-notifications",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Notifications",
+        "x": 2550,
+        "y": 40,
+        "wires": [
+            [
+                "prepare-feedback"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-feedback",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "เตรียมดึง Feedback",
+        "func": "msg.notifications = msg.payload || [];\n\n// ถ้าสถานะเป็น rejected ให้ดึง feedback\nif (msg.proposal.status === 'rejected') {\n    msg.topic = \"SELECT pf.*, u.username as reviewer_name FROM proposal_feedback pf LEFT JOIN users u ON pf.reviewer_id = u.id WHERE pf.proposal_id = ? ORDER BY pf.created_at DESC LIMIT 1\";\n    msg.payload = [msg.proposalId];\n    return msg;\n} else {\n    // ไม่มี feedback\n    msg.feedback = null;\n    msg.topic = \"\";\n    return [null, msg];\n}",
+        "outputs": 2,
+        "x": 2770,
+        "y": 40,
+        "wires": [
+            [
+                "mysql-get-feedback"
+            ],
+            [
+                "prepare-final-response"
+            ]
+        ]
+    },
+    {
+        "id": "mysql-get-feedback",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Feedback",
+        "x": 2980,
+        "y": 20,
+        "wires": [
+            [
+                "prepare-final-response"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-final-response",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "เตรียมข้อมูลตอบกลับ",
+        "func": "// ดึง feedback จากผลลัพธ์ (ถ้ามี)\nif (msg.topic.includes('proposal_feedback') && msg.payload && msg.payload.length > 0) {\n    msg.feedback = msg.payload[0];\n} else if (!msg.feedback) {\n    msg.feedback = null;\n}\n\n// สร้างข้อมูลตอบกลับ\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    proposal: msg.proposal,\n    advisors: msg.advisors,\n    statusHistory: msg.statusHistory,\n    notifications: msg.notifications,\n    feedback: msg.feedback\n};\n\nreturn msg;",
+        "outputs": 1,
+        "x": 3210,
+        "y": 40,
+        "wires": [
+            [
+                "http-response-getproposal"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-getproposal",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+        },
+        "x": 3440,
+        "y": 40,
+        "wires": []
+    },
+    {
+        "id": "http-mark-notification-read",
+        "type": "http in",
+        "z": "f19ba3457d2c8940",
+        "name": "Mark Notification Read",
+        "url": "/api/notifications/read/:id",
+        "method": "put",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 480,
+        "y": 180,
+        "wires": [
+            [
+                "auth-check-notification"
+            ]
+        ]
+    },
+    {
+        "id": "auth-check-notification",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "ตรวจสอบ Token",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg];\n}\n\n// ดึง token จาก header\nmsg.token = authHeader.split(' ')[1];\nmsg.notificationId = msg.req.params.id;\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "x": 710,
+        "y": 180,
+        "wires": [
+            [
+                "jwt-verify-notification"
+            ],
+            [
+                "http-response-notification"
+            ]
+        ]
+    },
+    {
+        "id": "jwt-verify-notification",
+        "type": "jwt verify",
+        "z": "f19ba3457d2c8940",
+        "name": "",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 900,
+        "y": 180,
+        "wires": [
+            [
+                "update-notification-status"
+            ]
+        ]
+    },
+    {
+        "id": "update-notification-status",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "อัปเดทสถานะการอ่าน",
+        "func": "const userId = msg.payload.userId;\nconst notificationId = msg.notificationId;\n\n// อัปเดทสถานะการอ่าน\nmsg.topic = \"UPDATE status_notifications SET is_read = 1 WHERE id = ? AND user_id = ?\";\nmsg.payload = [notificationId, userId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1120,
+        "y": 180,
+        "wires": [
+            [
+                "mysql-update-notification"
+            ]
+        ]
+    },
+    {
+        "id": "mysql-update-notification",
+        "type": "mysql",
+        "z": "f19ba3457d2c8940",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Update Notification",
+        "x": 1350,
+        "y": 180,
+        "wires": [
+            [
+                "prepare-notification-response"
+            ]
+        ]
+    },
+    {
+        "id": "prepare-notification-response",
+        "type": "function",
+        "z": "f19ba3457d2c8940",
+        "name": "เตรียมข้อมูลตอบกลับ",
+        "func": "if (msg.payload.affectedRows > 0) {\n    msg.statusCode = 200;\n    msg.payload = {\n        success: true,\n        message: \"อัปเดทสถานะการอ่านเรียบร้อยแล้ว\"\n    };\n} else {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบการแจ้งเตือนนี้\"\n    };\n}\n\nreturn msg;",
+        "outputs": 1,
+        "x": 1580,
+        "y": 180,
+        "wires": [
+            [
+                "http-response-notification"
+            ]
+        ]
+    },
+    {
+        "id": "http-response-notification",
+        "type": "http response",
+        "z": "f19ba3457d2c8940",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS"
+        },
+        "x": 1810,
+        "y": 180,
+        "wires": []
+    },
+    {
+        "id": "545508fd4e8bfe02",
+        "type": "MySQLdatabase",
+        "name": "",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "SID",
+        "tz": "",
+        "charset": "UTF8"
+    }
+]

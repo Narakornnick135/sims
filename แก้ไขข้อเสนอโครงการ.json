@@ -1,0 +1,20 @@
+[
+    {
+        "id": "26282c65dcd5df35",
+        "type": "http in",
+        "z": "89d321a0a642c083",
+        "name": "แก้ไขข้อเสนอโครงการ",
+        "url": "/api/proposals/revision",
+        "method": "put",
+        "upload": true,
+        "swaggerDoc": "",
+        "x": 130,
+        "y": 100,
+        "wires": [
+            [
+                "266ca1de85d4e343",
+                "44452c6bf2dcb0e0"
+            ]
+        ]
+    }
+]

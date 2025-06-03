@@ -1,0 +1,242 @@
+[
+    {
+        "id": "196e8ca9618ffacb",
+        "type": "tab",
+        "label": "Get Latest Feedback",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "8b3d34f6b16bfc87",
+        "type": "http in",
+        "z": "196e8ca9618ffacb",
+        "name": "Get Latest Feedback",
+        "url": "/api/proposals/:id/latest-feedback",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 190,
+        "y": 500,
+        "wires": [
+            [
+                "5afe089098500902"
+            ]
+        ]
+    },
+    {
+        "id": "5afe089098500902",
+        "type": "function",
+        "z": "196e8ca9618ffacb",
+        "name": "Check Token",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\nmsg.proposalId = msg.req.params.id;\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 380,
+        "y": 500,
+        "wires": [
+            [
+                "71d68663e2365f60"
+            ],
+            [
+                "efd466f0fda6e53e"
+            ]
+        ]
+    },
+    {
+        "id": "71d68663e2365f60",
+        "type": "jwt verify",
+        "z": "196e8ca9618ffacb",
+        "name": "",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 570,
+        "y": 500,
+        "wires": [
+            [
+                "6b4c0a2f1740ba78"
+            ]
+        ]
+    },
+    {
+        "id": "6b4c0a2f1740ba78",
+        "type": "function",
+        "z": "196e8ca9618ffacb",
+        "name": "Get Latest Feedback",
+        "func": "const userId = msg.payload.userId;\n\n// ตรวจสอบว่าเป็นเจ้าของโครงการ\nmsg.topic = `\n    SELECT ph.admin_feedback, ph.created_at\n    FROM proposal_history ph\n    JOIN proposals p ON ph.proposal_id = p.id\n    WHERE ph.proposal_id = ? AND p.user_id = ?\n    ORDER BY ph.created_at DESC\n    LIMIT 1\n`;\n\nmsg.payload = [msg.proposalId, userId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 770,
+        "y": 500,
+        "wires": [
+            [
+                "dba468d322192851"
+            ]
+        ]
+    },
+    {
+        "id": "dba468d322192851",
+        "type": "mysql",
+        "z": "196e8ca9618ffacb",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Feedback from DB",
+        "x": 990,
+        "y": 500,
+        "wires": [
+            [
+                "99a9f4e4d73e68a3"
+            ]
+        ]
+    },
+    {
+        "id": "99a9f4e4d73e68a3",
+        "type": "function",
+        "z": "196e8ca9618ffacb",
+        "name": "Format Feedback Response",
+        "func": "if (msg.payload && msg.payload.length > 0) {\n    const feedbackData = msg.payload[0];\n    \n    msg.statusCode = 200;\n    msg.payload = {\n        success: true,\n        feedback: feedbackData.admin_feedback,\n        created_at: feedbackData.created_at\n    };\n} else {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        message: \"ไม่พบข้อเสนอแนะ\"\n    };\n}\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1210,
+        "y": 500,
+        "wires": [
+            [
+                "efd466f0fda6e53e"
+            ]
+        ]
+    },
+    {
+        "id": "efd466f0fda6e53e",
+        "type": "http response",
+        "z": "196e8ca9618ffacb",
+        "name": "Feedback HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+        },
+        "x": 1430,
+        "y": 500,
+        "wires": []
+    },
+    {
+        "id": "a8585eaf6b1db4b1",
+        "type": "http in",
+        "z": "196e8ca9618ffacb",
+        "name": "Mark as Editing",
+        "url": "/api/proposals/mark-editing",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 180,
+        "y": 620,
+        "wires": [
+            [
+                "5e9bd63d3177ecf0"
+            ]
+        ]
+    },
+    {
+        "id": "5e9bd63d3177ecf0",
+        "type": "function",
+        "z": "196e8ca9618ffacb",
+        "name": "Check Token",
+        "func": "const authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg];\n}\n\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null];",
+        "outputs": 2,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "x": 380,
+        "y": 700,
+        "wires": [
+            [
+                "2d8982bd765b90e8"
+            ],
+            [
+                "57d3d358de426f3f"
+            ]
+        ]
+    },
+    {
+        "id": "2d8982bd765b90e8",
+        "type": "jwt verify",
+        "z": "196e8ca9618ffacb",
+        "name": "",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 570,
+        "y": 700,
+        "wires": [
+            [
+                "03cd312eac788c0f"
+            ]
+        ]
+    },
+    {
+        "id": "03cd312eac788c0f",
+        "type": "function",
+        "z": "196e8ca9618ffacb",
+        "name": "Mark as Editing",
+        "func": "const userId = msg.payload.userId;\n\n// เอาแค่ mark ว่าเริ่มการแก้ไข (สำหรับ tracking)\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    message: \"เริ่มการแก้ไขโครงการ\"\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 770,
+        "y": 700,
+        "wires": [
+            [
+                "57d3d358de426f3f"
+            ]
+        ]
+    },
+    {
+        "id": "57d3d358de426f3f",
+        "type": "http response",
+        "z": "196e8ca9618ffacb",
+        "name": "Editing HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization"
+        },
+        "x": 1000,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "545508fd4e8bfe02",
+        "type": "MySQLdatabase",
+        "name": "",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "SID",
+        "tz": "",
+        "charset": "UTF8"
+    }
+]

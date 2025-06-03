@@ -1,0 +1,554 @@
+[
+    {
+        "id": "0ae7375ee0dd9a25",
+        "type": "tab",
+        "label": "Admin APIs Flow",
+        "disabled": false,
+        "info": "Node-RED flow สำหรับ Admin APIs",
+        "env": []
+    },
+    {
+        "id": "d1201243cd68909c",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Check Admin Token",
+        "func": "// ตรวจสอบ Authorization header\nconst authHeader = msg.req.headers.authorization;\n\nif (!authHeader || !authHeader.startsWith('Bearer ')) {\n    msg.statusCode = 401;\n    msg.payload = {\n        success: false,\n        error: \"Token missing\"\n    };\n    return [null, msg]; // output ที่ 2 = error\n}\n\n// ดึง token\nmsg.token = authHeader.split(' ')[1];\n\nreturn [msg, null]; // output ที่ 1 = success",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 450,
+        "y": 640,
+        "wires": [
+            [
+                "7cd746e9699de1c9"
+            ],
+            [
+                "47f0ea251a16cbff"
+            ]
+        ]
+    },
+    {
+        "id": "acd2ed4acb06b09e",
+        "type": "http in",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Change Status to Preparing",
+        "url": "/api/admin/proposals/:id/prepare",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 200,
+        "y": 480,
+        "wires": [
+            [
+                "d1201243cd68909c"
+            ]
+        ]
+    },
+    {
+        "id": "c16c593cc118a6f4",
+        "type": "http in",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Final Approve",
+        "url": "/api/admin/proposals/:id/approve",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 170,
+        "y": 520,
+        "wires": [
+            [
+                "d1201243cd68909c"
+            ]
+        ]
+    },
+    {
+        "id": "04dcd4f8f8831724",
+        "type": "http in",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Reject Proposal",
+        "url": "/api/admin/proposals/:id/reject",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 180,
+        "y": 640,
+        "wires": [
+            [
+                "d1201243cd68909c"
+            ]
+        ]
+    },
+    {
+        "id": "c2d043770d473541",
+        "type": "http in",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Review Proposal",
+        "url": "/api/admin/proposals/:id/review",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 180,
+        "y": 680,
+        "wires": [
+            [
+                "d1201243cd68909c"
+            ]
+        ]
+    },
+    {
+        "id": "d168f5e70980b627",
+        "type": "http in",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Conditional Approval",
+        "url": "/api/admin/proposals/:id/conditional-approval",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 190,
+        "y": 720,
+        "wires": [
+            [
+                "d1201243cd68909c"
+            ]
+        ]
+    },
+    {
+        "id": "e859db54281c4f9c",
+        "type": "http in",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Get All Proposals",
+        "url": "/api/admin/proposals",
+        "method": "get",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 180,
+        "y": 800,
+        "wires": [
+            [
+                "d1201243cd68909c"
+            ]
+        ]
+    },
+    {
+        "id": "cf9ea7108ecc1ace",
+        "type": "http in",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Final Approve (Explicit)",
+        "url": "/api/admin/proposals/:id/final-approve",
+        "method": "post",
+        "upload": false,
+        "swaggerDoc": "",
+        "x": 200,
+        "y": 560,
+        "wires": [
+            [
+                "d1201243cd68909c"
+            ]
+        ]
+    },
+    {
+        "id": "7cd746e9699de1c9",
+        "type": "jwt verify",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Verify Admin JWT",
+        "alg": [
+            "HS256"
+        ],
+        "jwkurl": "",
+        "secret": "Superadicet!",
+        "key": "",
+        "signvar": "token",
+        "storetoken": "payload",
+        "x": 650,
+        "y": 580,
+        "wires": [
+            [
+                "43f9eb5d5d4cd84c"
+            ]
+        ]
+    },
+    {
+        "id": "47f0ea251a16cbff",
+        "type": "http response",
+        "z": "0ae7375ee0dd9a25",
+        "name": "HTTP Response",
+        "statusCode": "",
+        "headers": {
+            "Content-Type": "application/json",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "Origin, X-Requested-With, Content-Type, Accept, Authorization",
+            "Access-Control-Allow-Methods": "GET, POST, OPTIONS"
+        },
+        "x": 2320,
+        "y": 940,
+        "wires": []
+    },
+    {
+        "id": "43f9eb5d5d4cd84c",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Check Admin Role & Route",
+        "func": "// ตรวจสอบว่าผู้ใช้เป็น admin หรือไม่\nif (!msg.payload || msg.payload.role !== 'admin') {\n    msg.statusCode = 403;\n    msg.payload = {\n        success: false,\n        error: \"ไม่มีสิทธิ์เข้าถึง\"\n    };\n    return [null, msg]; // output ที่ 2 = error\n}\n\n// เก็บข้อมูล user\nmsg.admin = msg.payload;\n\n// ตรวจสอบว่าเป็น GET request สำหรับ list หรือ POST request สำหรับ change status\nif (msg.req.method === 'GET' && msg.req.url === '/api/admin/proposals') {\n    // ส่งไปยัง List Proposals Query\n    return [null, null, msg];\n} else {\n    // ส่งไปยัง การเปลี่ยนสถานะ\n    msg.proposalId = msg.req.params.id;\n    \n    // กำหนดสถานะใหม่ตาม path\n    const path = msg.req.originalUrl;\n    if (path.includes('/prepare')) {\n        msg.newStatus = 'preparing';\n    } else if (path.includes('/final-approve')) {\n        msg.newStatus = 'approved';\n    } else if (path.includes('/approve')) {\n        msg.newStatus = 'approved';\n    } else if (path.includes('/reject')) {\n        msg.newStatus = 'rejected';\n        // สำหรับ reject ดึง reason และ feedback\n        if (msg.req.body.reason) {\n            msg.rejectReason = msg.req.body.reason;\n            msg.rejectFeedback = msg.req.body.feedback || '';\n            // สร้าง remarks จาก reason และ feedback\n            const reasonText = getReasonText(msg.rejectReason);\n            msg.remarks = `เหตุผล: ${reasonText}\\n\\nรายละเอียด: ${msg.rejectFeedback}`;\n        } else {\n            // ถ้าส่งมาเป็น remarks โดยตรง\n            msg.remarks = msg.req.body.remarks || '';\n        }\n    } else if (path.includes('/review')) {\n        msg.newStatus = 'reviewing';\n    } else if (path.includes('/conditional-approval')) {\n        // Conditional approval\n        msg.newStatus = msg.req.body.requiresModification ? 'waiting_revision' : 'reviewing';\n        msg.conditionalFeedback = msg.req.body.feedback || '';\n        msg.requiresModification = msg.req.body.requiresModification || false;\n        msg.remarks = msg.req.body.requiresModification ? \n            `ต้องการแก้ไข: ${msg.conditionalFeedback}` : \n            `ข้อเสนอแนะ: ${msg.conditionalFeedback}`;\n    }\n    \n    // เก็บ remarks ถ้ามี (สำหรับ status อื่นๆ)\n    if (!msg.remarks) {\n        msg.remarks = msg.req.body.remarks || '';\n    }\n    \n    return [msg, null, null];\n}\n\n// Helper function แปลง reason code\nfunction getReasonText(reason) {\n    const reasons = {\n        'incomplete_info': 'ข้อมูลไม่ครบถ้วน',\n        'not_aligned': 'ไม่สอดคล้องกับวัตถุประสงค์',\n        'budget_issue': 'งบประมาณไม่เหมาะสม',\n        'duplicate': 'ซ้ำซ้อนกับโครงการที่มีอยู่',\n        'not_feasible': 'ไม่สามารถดำเนินการได้จริง',\n        'other': 'อื่นๆ'\n    };\n    return reasons[reason] || reason;\n}",
+        "outputs": 3,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 870,
+        "y": 620,
+        "wires": [
+            [
+                "8dddc4a66720ca45"
+            ],
+            [
+                "47f0ea251a16cbff"
+            ],
+            [
+                "7329fd0a576b1aa8"
+            ]
+        ]
+    },
+    {
+        "id": "ce300c711d09de2e",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Validate Proposal & Transitions",
+        "func": "// ตรวจสอบว่าพบโครงการหรือไม่\nif (!msg.payload || msg.payload.length === 0) {\n    msg.statusCode = 404;\n    msg.payload = {\n        success: false,\n        error: \"ไม่พบโครงการที่ระบุ\"\n    };\n    return [null, msg]; // output ที่ 2 = error\n}\n\nconst proposal = msg.payload[0];\nmsg.currentProposal = proposal;\n\n// ตรวจสอบการเปลี่ยนสถานะที่ถูกต้อง\nconst validTransitions = {\n    'waiting': ['reviewing', 'waiting_revision', 'rejected'],\n    'waiting_revision': ['reviewing', 'rejected'],\n    'reviewing': ['preparing', 'rejected', 'waiting_revision'],\n    'preparing': ['approved', 'rejected'],\n    'rejected': [],\n    'approved': []\n};\n\n// ตรวจสอบว่าสามารถเปลี่ยนสถานะได้หรือไม่\nconst currentStatus = proposal.status;\nconst allowedStatuses = validTransitions[currentStatus] || [];\n\nif (!allowedStatuses.includes(msg.newStatus)) {\n    msg.statusCode = 400;\n    msg.payload = {\n        success: false,\n        error: `ไม่สามารถเปลี่ยนสถานะจาก ${currentStatus} เป็น ${msg.newStatus} ได้`,\n        currentStatus: currentStatus,\n        newStatus: msg.newStatus,\n        allowedTransitions: allowedStatuses\n    };\n    return [null, msg]; // output ที่ 2 = error\n}\n\nreturn [msg, null]; // output ที่ 1 = success",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1560,
+        "y": 580,
+        "wires": [
+            [
+                "ae79c69f33f0198d"
+            ],
+            [
+                "47f0ea251a16cbff"
+            ]
+        ]
+    },
+    {
+        "id": "be4ac82f3d9375f9",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Success Response",
+        "func": "// สร้าง response message ตามสถานะ\nconst statusMessages = {\n    'waiting': 'โครงการอยู่ในสถานะรอการตรวจรับ',\n    'reviewing': 'ตรวจรับโครงการเรียบร้อยแล้ว',\n    'waiting_revision': 'ส่งคำขอให้แก้ไขโครงการเรียบร้อยแล้ว',\n    'preparing': 'เปลี่ยนสถานะเป็นเตรียมนำเสนอเรียบร้อยแล้ว',\n    'approved': 'อนุมัติโครงการเรียบร้อยแล้ว',\n    'rejected': 'ปฏิเสธโครงการเรียบร้อยแล้ว'\n};\n\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    message: statusMessages[msg.newStatus] || `เปลี่ยนสถานะโครงการเป็น ${msg.newStatus} เรียบร้อยแล้ว`,\n    proposalId: msg.proposalId,\n    newStatus: msg.newStatus,\n    remarks: msg.remarks || ''\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1740,
+        "y": 1080,
+        "wires": [
+            [
+                "47f0ea251a16cbff"
+            ]
+        ]
+    },
+    {
+        "id": "faa81501fe4a7e54",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Format Proposals List",
+        "func": "// จัดรูปแบบรายการโครงการ\nconst proposals = msg.payload.map(proposal => ({\n    id: proposal.id,\n    proposalId: proposal.proposals_id,\n    title: proposal.project_title,\n    innovationType: proposal.innovation_type,\n    status: proposal.status,\n    leadName: proposal.lead_name,\n    leadEmail: proposal.lead_email,\n    username: proposal.lead_username,\n    budget: proposal.budget_requested,\n    beneficiaries: proposal.beneficiaries,\n    province: proposal.province,\n    createdAt: proposal.created_at,\n    updatedAt: proposal.updated_at\n}));\n\nmsg.statusCode = 200;\nmsg.payload = {\n    success: true,\n    message: \"ดึงรายการโครงการเรียบร้อยแล้ว\",\n    total: proposals.length,\n    proposals: proposals\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1330,
+        "y": 1120,
+        "wires": [
+            [
+                "47f0ea251a16cbff"
+            ]
+        ]
+    },
+    {
+        "id": "119a01eaac3d4ea9",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "JWT Error Response",
+        "func": "let errorMessage = \"Token ไม่ถูกต้อง\";\nlet errorCode = \"INVALID_TOKEN\";\n\nif (msg.error && msg.error.message) {\n    if (msg.error.message.includes('expired')) {\n        errorMessage = \"Token หมดอายุ กรุณาเข้าสู่ระบบใหม่\";\n        errorCode = \"TOKEN_EXPIRED\";\n    }\n}\n\nmsg.statusCode = 401;\nmsg.payload = {\n    success: false,\n    error: errorMessage,\n    code: errorCode\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 700,
+        "y": 740,
+        "wires": [
+            [
+                "47f0ea251a16cbff"
+            ]
+        ]
+    },
+    {
+        "id": "8dddc4a66720ca45",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Prepare Proposal Query",
+        "func": "// เตรียม SQL สำหรับดึงข้อมูลโครงการปัจจุบัน\nmsg.topic = \"SELECT * FROM proposals WHERE id = ?\";\nmsg.payload = [msg.proposalId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1140,
+        "y": 580,
+        "wires": [
+            [
+                "5cfae82beb71b3cf"
+            ]
+        ]
+    },
+    {
+        "id": "7329fd0a576b1aa8",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "List Proposals Query",
+        "func": "// สำหรับ admin proposal list\n// ดึงรายการโครงการทั้งหมด\nlet query = `\n    SELECT \n        p.*,\n        u.username as lead_username,\n        u.email as lead_user_email\n    FROM proposals p\n    LEFT JOIN users u ON p.user_id = u.id\n    ORDER BY p.created_at DESC\n`;\n\n// เพิ่มการกรองตามสถานะ (optional)\nconst status = msg.req.query.status;\nif (status) {\n    query = `\n        SELECT \n            p.*,\n            u.username as lead_username,\n            u.email as lead_user_email\n        FROM proposals p\n        LEFT JOIN users u ON p.user_id = u.id\n        WHERE p.status = ?\n        ORDER BY p.created_at DESC\n    `;\n    msg.payload = [status];\n} else {\n    msg.payload = [];\n}\n\nmsg.topic = query;\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1130,
+        "y": 860,
+        "wires": [
+            [
+                "58e2b7f6f6c8cd34"
+            ]
+        ]
+    },
+    {
+        "id": "5cfae82beb71b3cf",
+        "type": "mysql",
+        "z": "0ae7375ee0dd9a25",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Get Proposal",
+        "x": 1340,
+        "y": 580,
+        "wires": [
+            [
+                "ce300c711d09de2e"
+            ]
+        ]
+    },
+    {
+        "id": "ae79c69f33f0198d",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Update Status Query",
+        "func": "// อัพเดทสถานะโครงการ\nmsg.topic = \"UPDATE proposals SET status = ?, updated_at = NOW() WHERE id = ?\";\nmsg.payload = [msg.newStatus, msg.proposalId];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1790,
+        "y": 580,
+        "wires": [
+            [
+                "08d2b9844bfcf805"
+            ]
+        ]
+    },
+    {
+        "id": "58e2b7f6f6c8cd34",
+        "type": "mysql",
+        "z": "0ae7375ee0dd9a25",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Execute List Query",
+        "x": 1160,
+        "y": 1020,
+        "wires": [
+            [
+                "faa81501fe4a7e54"
+            ]
+        ]
+    },
+    {
+        "id": "8c80aa3cbf8c42ef",
+        "type": "catch",
+        "z": "0ae7375ee0dd9a25",
+        "name": "JWT Error Handler",
+        "scope": [
+            "7cd746e9699de1c9"
+        ],
+        "uncaught": false,
+        "x": 500,
+        "y": 740,
+        "wires": [
+            [
+                "119a01eaac3d4ea9"
+            ]
+        ]
+    },
+    {
+        "id": "08d2b9844bfcf805",
+        "type": "mysql",
+        "z": "0ae7375ee0dd9a25",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Update Proposal",
+        "x": 2000,
+        "y": 580,
+        "wires": [
+            [
+                "f898eb5be3517685"
+            ]
+        ]
+    },
+    {
+        "id": "f898eb5be3517685",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Create Status History",
+        "func": "// สร้างประวัติการเปลี่ยนสถานะ\nconst statusMessages = {\n    'waiting': 'รอการตรวจรับ',\n    'reviewing': 'เจ้าหน้าที่ตรวจรับแล้ว',\n    'waiting_revision': 'รอการแก้ไขตามข้อเสนอแนะ',\n    'preparing': 'การันตีให้นำเสนอผลงาน กรุณาเตรียมข้อมูลสำหรับการนำเสนอ',\n    'approved': 'อนุมัติโครงการ',\n    'rejected': 'ไม่ผ่านการอนุมัติ'\n};\n\nconst remarks = msg.remarks || statusMessages[msg.newStatus];\n\n// เตรียม SQL สำหรับบันทึกประวัติ\nlet historyQuery = \"INSERT INTO project_status_history (proposal_id, status, status_date, remarks, updated_by\";\nlet historyValues = [msg.proposalId, msg.newStatus, new Date(), remarks, msg.admin.userId];\n\n// ถ้าเป็นการ reject และมี reason code ให้บันทึกด้วย (ถ้ามี column)\nif (msg.newStatus === 'rejected' && msg.rejectReason) {\n    // ถ้าต้องการเก็บ reason แยก ต้องเพิ่ม column ในฐานข้อมูลก่อน\n    // historyQuery += \", reject_reason\";\n    // historyValues.push(msg.rejectReason);\n}\n\nhistoryQuery += \") VALUES (?, ?, ?, ?, ?)\";\n\nmsg.topic = historyQuery;\nmsg.payload = historyValues;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1790,
+        "y": 660,
+        "wires": [
+            [
+                "18e3ba18c55dda41"
+            ]
+        ]
+    },
+    {
+        "id": "18e3ba18c55dda41",
+        "type": "mysql",
+        "z": "0ae7375ee0dd9a25",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Insert History",
+        "x": 2000,
+        "y": 660,
+        "wires": [
+            [
+                "1232964e69b4b838"
+            ]
+        ]
+    },
+    {
+        "id": "1232964e69b4b838",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Create Notification",
+        "func": "// สร้างการแจ้งเตือนให้ผู้ใช้\nconst notificationMessages = {\n    'waiting': 'โครงการของคุณอยู่ในสถานะรอการตรวจรับ',\n    'reviewing': 'เจ้าหน้าที่ได้ตรวจรับโครงการของคุณแล้ว',\n    'waiting_revision': 'โครงการของคุณต้องการการแก้ไขตามข้อเสนอแนะ กรุณาตรวจสอบรายละเอียด',\n    'preparing': 'โครงการของคุณได้รับการรับรองให้นำเสนอ กรุณาเตรียมข้อมูลสำหรับการนำเสนอ',\n    'approved': 'ยินดีด้วย! โครงการของคุณได้รับการอนุมัติ',\n    'rejected': 'ขออภัย โครงการของคุณไม่ผ่านการอนุมัติ'\n};\n\nconst message = notificationMessages[msg.newStatus];\n\nmsg.topic = \"INSERT INTO status_notifications (user_id, proposal_id, status, message, created_at) VALUES (?, ?, ?, ?, NOW())\";\nmsg.payload = [msg.currentProposal.user_id, msg.proposalId, msg.newStatus, message];\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1780,
+        "y": 740,
+        "wires": [
+            [
+                "fb72259a741a7286"
+            ]
+        ]
+    },
+    {
+        "id": "fb72259a741a7286",
+        "type": "mysql",
+        "z": "0ae7375ee0dd9a25",
+        "mydb": "545508fd4e8bfe02",
+        "name": "Insert Notification",
+        "x": 2000,
+        "y": 740,
+        "wires": [
+            [
+                "ade173bc4c245c1b"
+            ]
+        ]
+    },
+    {
+        "id": "ade173bc4c245c1b",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Prepare Email",
+        "func": "// เตรียมข้อมูลสำหรับส่งอีเมล\nconst proposal = msg.currentProposal;\n\n// กำหนดหัวข้ออีเมลตามสถานะ\nconst emailSubjects = {\n    'waiting': 'แจ้งการรับโครงการ - ' + proposal.project_title,\n    'reviewing': 'แจ้งการตรวจรับโครงการ - ' + proposal.project_title,\n    'waiting_revision': 'แจ้งขอให้แก้ไขโครงการ - ' + proposal.project_title,\n    'preparing': 'แจ้งการรับรองให้นำเสนอโครงการ - ' + proposal.project_title,\n    'approved': 'แจ้งการอนุมัติโครงการ - ' + proposal.project_title,\n    'rejected': 'แจ้งผลการพิจารณาโครงการ - ' + proposal.project_title\n};\n\n// เตรียมข้อมูลสำหรับอีเมล\nmsg.emailData = {\n    name: proposal.lead_name,\n    date: new Date().toLocaleDateString('th-TH', {\n        year: 'numeric',\n        month: 'long',\n        day: 'numeric'\n    }),\n    important_message: msg.remarks || '',\n    id: proposal.proposals_id,\n    status: msg.newStatus,\n    status_text: getStatusText(msg.newStatus),\n    process_date: new Date().toLocaleDateString('th-TH'),\n    note: msg.remarks || '',\n    action_url: \"https://adicet.cmru.ac.th/sid/dashboard\",\n    support_email: \"sidcmru@g.cmru.ac.th\",\n    current_year: new Date().getFullYear(),\n    company_address: \"180 หมู่ 7 ถนนโชตนา ตำบลขี้เหล็ก อำเภอแม่ริม จังหวัดเชียงใหม่ 50180\"\n};\n\nmsg.topic = emailSubjects[msg.newStatus];\nmsg.to = proposal.lead_email;\n\nreturn msg;\n\nfunction getStatusText(status) {\n    const statusTexts = {\n        'waiting': 'รอการตรวจรับ',\n        'reviewing': 'เจ้าหน้าที่ตรวจรับแล้ว',\n        'waiting_revision': 'รอการแก้ไข',\n        'preparing': 'เตรียมนำเสนอ',\n        'approved': 'อนุมัติแล้ว',\n        'rejected': 'ไม่ผ่านการอนุมัติ'\n    };\n    return statusTexts[status] || status;\n}",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1770,
+        "y": 820,
+        "wires": [
+            [
+                "3383581854f093a2"
+            ]
+        ]
+    },
+    {
+        "id": "3383581854f093a2",
+        "type": "template",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Email Template",
+        "field": "payload",
+        "fieldType": "msg",
+        "format": "handlebars",
+        "syntax": "mustache",
+        "template": "<!DOCTYPE html>\n<html>\n<head>\n    <meta charset=\"utf-8\">\n    <title>แจ้งอัพเดทสถานะโครงการ</title>\n</head>\n<body style=\"font-family: 'Prompt', Arial, sans-serif; line-height: 1.6; color: #333;\">\n    <div style=\"max-width: 600px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1);\">\n        <div style=\"text-align: center; padding: 20px; background: linear-gradient(135deg, #FFD700, #FFA500); border-radius: 10px 10px 0 0;\">\n            <h1 style=\"color: #333; margin: 0;\">SID-CMRU</h1>\n            <p style=\"margin: 5px 0 0 0; color: #666;\">หน่วยขับเคลื่อนนวัตกรรมเพื่อสังคม</p>\n        </div>\n        \n        <div style=\"padding: 20px;\">\n            <h2>เรียน คุณ{{emailData.name}}</h2>\n            \n            <p>ขอแจ้งให้ทราบว่าสถานะโครงการของท่านได้มีการเปลี่ยนแปลง</p>\n            \n            <div style=\"background: #f8f9fa; padding: 15px; border-radius: 5px; margin: 20px 0;\">\n                <p><strong>ชื่อโครงการ:</strong> {{currentProposal.project_title}}</p>\n                <p><strong>หมายเลขอ้างอิง:</strong> {{emailData.id}}</p>\n                <p><strong>สถานะใหม่:</strong> {{emailData.status_text}}</p>\n                <p><strong>วันที่อัพเดท:</strong> {{emailData.process_date}}</p>\n                \n                {{!-- {{#if emailData.note}} --}}\n                {{!-- <hr style=\"border: 0; border-top: 1px dashed #ccc; margin: 15px 0;\"> --}}\n                {{!-- <p><strong>หมายเหตุ/ข้อเสนอแนะ:</strong></p> --}}\n                {{!-- <p style=\"white-space: pre-wrap;\">{{emailData.note}}</p> --}}\n                {{!-- {{/if}} --}}\n            </div>\n            \n            <div style=\"text-align: center; margin: 20px 0;\">\n                <a href=\"{{emailData.action_url}}\" style=\"display: inline-block; padding: 10px 20px; background: #FFD700; color: #333; text-decoration: none; border-radius: 50px; font-weight: bold;\">ดูรายละเอียดเพิ่มเติม</a>\n            </div>\n            \n            <p>หากมีข้อสงสัยหรือต้องการความช่วยเหลือ กรุณาติดต่อ:</p>\n            <p>📧 อีเมล: {{emailData.support_email}}<br>\n            📞 โทร: (+66) 65-0161100</p>\n        </div>\n        \n        <div style=\"text-align: center; padding: 15px; background: #f8f9fa; color: #666; font-size: 12px; border-radius: 0 0 10px 10px;\">\n            <p>&copy; {{emailData.current_year}} SID-CMRU. สงวนลิขสิทธิ์.</p>\n            <p>{{emailData.company_address}}</p>\n        </div>\n    </div>\n</body>\n</html>",
+        "output": "str",
+        "x": 1600,
+        "y": 920,
+        "wires": [
+            [
+                "a391183c45b71767"
+            ]
+        ]
+    },
+    {
+        "id": "a391183c45b71767",
+        "type": "function",
+        "z": "0ae7375ee0dd9a25",
+        "name": "Queue Email & Complete",
+        "func": "// บันทึก email ที่จะส่งลง queue (ถ้ามี)\n// หรือส่งต่อไปยัง email node\n\n// สำหรับตอนนี้ให้ log ไว้ก่อน\nnode.warn(`Email queued to: ${msg.to}`);\nnode.warn(`Subject: ${msg.topic}`);\n\n// ส่งต่อไปยัง success response\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1760,
+        "y": 1020,
+        "wires": [
+            [
+                "be4ac82f3d9375f9"
+            ]
+        ]
+    },
+    {
+        "id": "545508fd4e8bfe02",
+        "type": "MySQLdatabase",
+        "name": "",
+        "host": "127.0.0.1",
+        "port": "3306",
+        "db": "SID",
+        "tz": "",
+        "charset": "UTF8"
+    }
+]
