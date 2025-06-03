@@ -1569,3 +1569,253 @@
       justify-content: space-between;
     }
   }
+
+/* ========================================
+   PRESENTATION FILE UPLOAD - 4 FILE TYPES
+   เพิ่มใน dashboard.css หลังจาก FILE UPLOAD SECTION
+   ======================================== */
+
+/* File Upload Card */
+.file-upload-card {
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  padding: 1rem;
+  background: white;
+  transition: all 0.3s ease;
+  height: 100%;
+}
+
+.file-upload-card:hover {
+  box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  transform: translateY(-2px);
+}
+
+.file-upload-header {
+  font-weight: 600;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  color: var(--secondary-color);
+}
+
+.file-upload-header i {
+  font-size: 1.2rem;
+}
+
+/* File Upload Success State */
+.file-upload-container.file-uploaded .file-upload-content {
+  display: none;
+}
+
+.file-upload-container.file-uploaded {
+  background-color: rgba(40, 167, 69, 0.05);
+  border-color: #28a745;
+  border-style: solid;
+}
+
+.file-upload-success {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem;
+  background: rgba(40, 167, 69, 0.1);
+  border-radius: 8px;
+}
+
+.file-upload-container.file-uploaded .file-upload-success {
+  display: flex !important;
+}
+
+.file-upload-success .file-name {
+  flex: 1;
+  margin: 0 1rem;
+  font-size: 0.9rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #155724;
+  font-weight: 500;
+}
+
+.file-upload-success .fa-check-circle {
+  font-size: 1.2rem;
+}
+
+/* Upload Progress Overview */
+.upload-progress-overview {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(229, 114, 0, 0.05) 100%);
+  padding: 1.2rem;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+}
+
+.upload-progress-overview .progress {
+  background-color: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Drag Over State */
+.file-upload-container.drag-over {
+  background-color: rgba(255, 215, 0, 0.1);
+  border-color: var(--primary-yellow);
+  transform: scale(1.02);
+}
+
+/* Upload Status Message */
+#uploadStatusMessage {
+  border-radius: 10px;
+  padding: 1rem 1.5rem;
+  font-weight: 500;
+}
+
+#uploadStatusMessage.alert-success {
+  background-color: rgba(40, 167, 69, 0.1);
+  border-color: #28a745;
+  color: #155724;
+}
+
+#uploadStatusMessage.alert-warning {
+  background-color: rgba(255, 193, 7, 0.1);
+  border-color: #ffc107;
+  color: #856404;
+}
+
+/* Action Buttons */
+#checkUploadStatus {
+  min-width: 160px;
+}
+
+#submitAllFiles {
+  min-width: 200px;
+  font-weight: 600;
+}
+
+#submitAllFiles:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive Grid */
+@media (max-width: 768px) {
+  .file-upload-card {
+    margin-bottom: 1rem;
+  }
+  
+  .upload-progress-overview {
+    padding: 1rem;
+  }
+  
+  #checkUploadStatus,
+  #submitAllFiles {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+}
+
+/* File Type Icons Colors */
+.file-upload-header .fa-file-word {
+  color: #2B579A;
+}
+
+.file-upload-header .fa-file-pdf {
+  color: #DC3545;
+}
+
+.file-upload-header .fa-file-powerpoint {
+  color: #D24726;
+}
+
+/* Progress Bar Animation */
+.upload-progress-bar {
+  transition: width 0.3s ease;
+  background: linear-gradient(
+    45deg,
+    var(--primary-yellow) 25%,
+    var(--primary-yellow-dark) 25%,
+    var(--primary-yellow-dark) 50%,
+    var(--primary-yellow) 50%,
+    var(--primary-yellow) 75%,
+    var(--primary-yellow-dark) 75%,
+    var(--primary-yellow-dark)
+  );
+  background-size: 40px 40px;
+  animation: progress-bar-stripes 1s linear infinite;
+}
+
+@keyframes progress-bar-stripes {
+  0% {
+    background-position: 40px 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
+}
+
+/* File Remove Button */
+.file-upload-success .btn-link {
+  padding: 0.25rem 0.5rem;
+  text-decoration: none;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.file-upload-success .btn-link:hover {
+  opacity: 1;
+}
+
+/* Loading State for File Cards */
+.file-upload-card.loading {
+  position: relative;
+  pointer-events: none;
+}
+
+.file-upload-card.loading::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Overall Progress Badge Enhancement */
+#uploadProgressBadge {
+  font-size: 0.85rem;
+  padding: 0.4rem 0.8rem;
+  font-weight: 600;
+}
+
+#uploadProgressBadge.bg-success {
+  background-color: #28a745 !important;
+}
+
+/* File Upload Icon Animation */
+.file-upload-content .file-upload-icon {
+  transition: transform 0.3s ease;
+}
+
+.file-upload-container:hover .file-upload-icon {
+  transform: scale(1.1);
+}
+
+/* Success Check Animation */
+@keyframes checkmark {
+  0% {
+    transform: scale(0) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.2) rotate(10deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+}
+
+.file-upload-success .fa-check-circle {
+  animation: checkmark 0.5s ease;
+}
