@@ -183,32 +183,163 @@
                 </div>
 
                 <!-- Upload Section (visible only when status is preparing) -->
+                <!-- Upload Section - แทนที่ส่วนเดิมใน index.html -->
                 <div class="dashboard-card" id="uploadSection" style="display: none;">
                     <div class="dashboard-card-header">
-                        <h2 class="dashboard-card-title"><i class="fas fa-upload"></i> อัปโหลดเอกสารนำเสนอ</h2>
+                    <h2 class="dashboard-card-title"><i class="fas fa-upload"></i> อัปโหลดเอกสารนำเสนอ</h2>
                     </div>
                     <div class="dashboard-card-body">
-                        <p class="mb-3">กรุณาอัปโหลดเอกสารหรือสไลด์สำหรับการนำเสนอโครงการตามแบบฟอร์มที่กำหนด</p>
-                        
-                        <div class="file-upload-section">
-                            <div class="file-upload-container" id="presentationContainer">
-                                <div class="file-upload-content">
-                                    <div class="file-upload-icon">
-                                        <i class="fas fa-file-powerpoint"></i>
-                                    </div>
-                                    <div class="file-upload-text">คลิกหรือลากไฟล์มาวางที่นี่</div>
-                                    <div class="file-format-info">รองรับไฟล์ .ppt, .pptx, .pdf ขนาดไม่เกิน 15MB</div>
+                    <p class="mb-3">กรุณาอัปโหลดเอกสารทั้ง 4 ประเภทสำหรับการนำเสนอโครงการ</p>
+                    
+                    <!-- Upload Progress Overview -->
+                    <div class="upload-progress-overview mb-4">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span class="fw-bold">ความคืบหน้าการอัปโหลด</span>
+                        <span class="badge bg-primary" id="uploadProgressBadge">0/4 ไฟล์</span>
+                        </div>
+                        <div class="progress" style="height: 20px;">
+                        <div class="progress-bar bg-success" id="overallProgressBar" role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                    </div>
+                
+                    <!-- File Upload Grid -->
+                    <div class="row g-3">
+                        <!-- 1. Proposal Word -->
+                        <div class="col-md-6">
+                        <div class="file-upload-card">
+                            <div class="file-upload-header">
+                            <i class="fas fa-file-word text-primary"></i>
+                            <span class="ms-2">ข้อเสนอโครงการฉบับเต็ม (Word)</span>
+                            </div>
+                            <div class="file-upload-container" id="proposalWordContainer">
+                            <div class="file-upload-content">
+                                <div class="file-upload-icon">
+                                <i class="fas fa-file-word"></i>
                                 </div>
-                                <input type="file" id="presentationFile" class="file-input" accept=".ppt,.pptx,.pdf">
-                                <div class="upload-progress" id="presentationProgress" style="display: none;">
-                                    <div class="upload-progress-bar"></div>
-                                </div>
+                                <div class="file-upload-text">คลิกหรือลากไฟล์มาวางที่นี่</div>
+                                <div class="file-format-info">รองรับไฟล์ .doc, .docx ขนาดไม่เกิน 20MB</div>
+                            </div>
+                            <input type="file" id="proposalWordFile" class="file-input" accept=".doc,.docx">
+                            <div class="upload-progress" id="proposalWordProgress" style="display: none;">
+                                <div class="upload-progress-bar"></div>
+                            </div>
+                            <div class="file-upload-success" id="proposalWordSuccess" style="display: none;">
+                                <i class="fas fa-check-circle text-success"></i>
+                                <span class="file-name"></span>
+                                <button type="button" class="btn btn-sm btn-link text-danger" onclick="SimUser.upload.removeFile('proposalWord')">
+                                <i class="fas fa-times"></i>
+                                </button>
+                            </div>
                             </div>
                         </div>
-                        
-                        <button type="button" id="submitPresentation" class="btn btn-action btn-info mt-3">
-                            <i class="fas fa-paper-plane"></i> ส่งเอกสารนำเสนอ
+                        </div>
+                
+                        <!-- 2. Proposal PDF -->
+                        <div class="col-md-6">
+                        <div class="file-upload-card">
+                            <div class="file-upload-header">
+                            <i class="fas fa-file-pdf text-danger"></i>
+                            <span class="ms-2">ข้อเสนอโครงการฉบับเต็ม (PDF)</span>
+                            </div>
+                            <div class="file-upload-container" id="proposalPdfContainer">
+                            <div class="file-upload-content">
+                                <div class="file-upload-icon">
+                                <i class="fas fa-file-pdf"></i>
+                                </div>
+                                <div class="file-upload-text">คลิกหรือลากไฟล์มาวางที่นี่</div>
+                                <div class="file-format-info">รองรับไฟล์ .pdf ขนาดไม่เกิน 20MB</div>
+                            </div>
+                            <input type="file" id="proposalPdfFile" class="file-input" accept=".pdf">
+                            <div class="upload-progress" id="proposalPdfProgress" style="display: none;">
+                                <div class="upload-progress-bar"></div>
+                            </div>
+                            <div class="file-upload-success" id="proposalPdfSuccess" style="display: none;">
+                                <i class="fas fa-check-circle text-success"></i>
+                                <span class="file-name"></span>
+                                <button type="button" class="btn btn-sm btn-link text-danger" onclick="SimUser.upload.removeFile('proposalPdf')">
+                                <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            </div>
+                        </div>
+                        </div>
+                
+                        <!-- 3. Slide PowerPoint -->
+                        <div class="col-md-6">
+                        <div class="file-upload-card">
+                            <div class="file-upload-header">
+                            <i class="fas fa-file-powerpoint text-warning"></i>
+                            <span class="ms-2">สไลด์ประกอบการนำเสนอ (PowerPoint)</span>
+                            </div>
+                            <div class="file-upload-container" id="slidePptxContainer">
+                            <div class="file-upload-content">
+                                <div class="file-upload-icon">
+                                <i class="fas fa-file-powerpoint"></i>
+                                </div>
+                                <div class="file-upload-text">คลิกหรือลากไฟล์มาวางที่นี่</div>
+                                <div class="file-format-info">รองรับไฟล์ .ppt, .pptx ขนาดไม่เกิน 50MB</div>
+                            </div>
+                            <input type="file" id="slidePptxFile" class="file-input" accept=".ppt,.pptx">
+                            <div class="upload-progress" id="slidePptxProgress" style="display: none;">
+                                <div class="upload-progress-bar"></div>
+                            </div>
+                            <div class="file-upload-success" id="slidePptxSuccess" style="display: none;">
+                                <i class="fas fa-check-circle text-success"></i>
+                                <span class="file-name"></span>
+                                <button type="button" class="btn btn-sm btn-link text-danger" onclick="SimUser.upload.removeFile('slidePptx')">
+                                <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            </div>
+                        </div>
+                        </div>
+                
+                        <!-- 4. Slide PDF -->
+                        <div class="col-md-6">
+                        <div class="file-upload-card">
+                            <div class="file-upload-header">
+                            <i class="fas fa-file-pdf text-danger"></i>
+                            <span class="ms-2">สไลด์ประกอบการนำเสนอ (PDF)</span>
+                            </div>
+                            <div class="file-upload-container" id="slidePdfContainer">
+                            <div class="file-upload-content">
+                                <div class="file-upload-icon">
+                                <i class="fas fa-file-pdf"></i>
+                                </div>
+                                <div class="file-upload-text">คลิกหรือลากไฟล์มาวางที่นี่</div>
+                                <div class="file-format-info">รองรับไฟล์ .pdf ขนาดไม่เกิน 30MB</div>
+                            </div>
+                            <input type="file" id="slidePdfFile" class="file-input" accept=".pdf">
+                            <div class="upload-progress" id="slidePdfProgress" style="display: none;">
+                                <div class="upload-progress-bar"></div>
+                            </div>
+                            <div class="file-upload-success" id="slidePdfSuccess" style="display: none;">
+                                <i class="fas fa-check-circle text-success"></i>
+                                <span class="file-name"></span>
+                                <button type="button" class="btn btn-sm btn-link text-danger" onclick="SimUser.upload.removeFile('slidePdf')">
+                                <i class="fas fa-times"></i>
+                                </button>
+                            </div>
+                            </div>
+                        </div>
+                        </div>
+                    </div>
+                
+                    <!-- Action Buttons -->
+                    <div class="mt-4 text-center">
+                        <button type="button" id="checkUploadStatus" class="btn btn-outline-primary me-2">
+                        <i class="fas fa-sync"></i> ตรวจสอบสถานะ
                         </button>
+                        <button type="button" id="submitAllFiles" class="btn btn-action btn-primary" disabled>
+                        <i class="fas fa-cloud-upload-alt"></i> อัปโหลดไฟล์ทั้งหมด
+                        </button>
+                    </div>
+                    
+                    <!-- Upload Status Message -->
+                    <div id="uploadStatusMessage" class="alert alert-info mt-3" style="display: none;">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <span id="uploadStatusText"></span>
+                    </div>
                     </div>
                 </div>
 
@@ -553,6 +684,144 @@
     
     <!-- Page specific script - โหลดสุดท้าย -->
     <script src="/simuser/js/simuser-dashboard.js"></script>
+    <script>
+    // DOM Ready Fix for Timeline and Notifications
+    (function() {
+    console.log('DOM Ready Fix: Starting...');
+    
+    // Function to ensure elements exist
+    function ensureElementsExist() {
+        // Check timeline container
+        let timelineContainer = document.getElementById('projectTimeline');
+        if (!timelineContainer) {
+        console.warn('DOM Ready Fix: Timeline container not found, looking for parent...');
+        const timelineCard = document.querySelector('.dashboard-card:has(.dashboard-card-title:contains("ประวัติการดำเนินการ"))');
+        if (timelineCard) {
+            const cardBody = timelineCard.querySelector('.dashboard-card-body');
+            if (cardBody && !cardBody.querySelector('#projectTimeline')) {
+            console.log('DOM Ready Fix: Creating timeline container');
+            const div = document.createElement('div');
+            div.className = 'timeline';
+            div.id = 'projectTimeline';
+            cardBody.appendChild(div);
+            }
+        }
+        }
+        
+        // Check notifications container
+        let notifContainer = document.getElementById('notificationsContainer');
+        if (!notifContainer) {
+        console.warn('DOM Ready Fix: Notifications container not found, looking for parent...');
+        const notifCard = document.querySelector('.dashboard-card:has(.dashboard-card-title:contains("การแจ้งเตือน"))');
+        if (notifCard) {
+            const cardBody = notifCard.querySelector('.dashboard-card-body');
+            if (cardBody && !cardBody.querySelector('#notificationsContainer')) {
+            console.log('DOM Ready Fix: Creating notifications container');
+            const div = document.createElement('div');
+            div.className = 'notification-scroll';
+            div.id = 'notificationsContainer';
+            cardBody.appendChild(div);
+            }
+        }
+        }
+    }
+    
+    // Try to fix on different DOM ready states
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', ensureElementsExist);
+    } else {
+        ensureElementsExist();
+    }
+    
+    // Also try after window load
+    window.addEventListener('load', function() {
+        setTimeout(ensureElementsExist, 100);
+    });
+    
+    // Force re-initialization after delay
+    setTimeout(function() {
+        console.log('DOM Ready Fix: Force re-initialization...');
+        
+        if (window.dashboard && window.dashboard.proposalData) {
+        // Re-initialize components
+        if (window.SimUser?.timeline?.initialize) {
+            window.SimUser.timeline.initialize();
+        }
+        if (window.SimUser?.notifications?.initialize) {
+            window.SimUser.notifications.initialize();
+        }
+        
+        // Re-render data
+        setTimeout(function() {
+            if (window.dashboard.proposalData.statusHistory && window.SimUser?.timeline?.renderTimeline) {
+            console.log('DOM Ready Fix: Re-rendering timeline');
+            window.SimUser.timeline.renderTimeline(window.dashboard.proposalData.statusHistory);
+            }
+            
+            if (window.dashboard.proposalData.notifications && window.SimUser?.notifications?.renderNotifications) {
+            console.log('DOM Ready Fix: Re-rendering notifications');
+            window.SimUser.notifications.renderNotifications(window.dashboard.proposalData.notifications);
+            }
+        }, 200);
+        }
+    }, 2000);
+    
+    })();
+    </script>
+
+    <!-- Alternative: Using MutationObserver to detect when containers are added -->
+    <script>
+    (function() {
+    if (typeof MutationObserver === 'undefined') return;
+    
+    let timelineFound = false;
+    let notifFound = false;
+    
+    const observer = new MutationObserver(function(mutations) {
+        if (!timelineFound && document.getElementById('projectTimeline')) {
+        timelineFound = true;
+        console.log('MutationObserver: Timeline container found');
+        
+        // Initialize and render timeline
+        if (window.SimUser?.timeline && window.dashboard?.proposalData?.statusHistory) {
+            setTimeout(function() {
+            window.SimUser.timeline.initialize();
+            window.SimUser.timeline.renderTimeline(window.dashboard.proposalData.statusHistory);
+            }, 100);
+        }
+        }
+        
+        if (!notifFound && document.getElementById('notificationsContainer')) {
+        notifFound = true;
+        console.log('MutationObserver: Notifications container found');
+        
+        // Initialize and render notifications
+        if (window.SimUser?.notifications && window.dashboard?.proposalData?.notifications) {
+            setTimeout(function() {
+            window.SimUser.notifications.initialize();
+            window.SimUser.notifications.renderNotifications(window.dashboard.proposalData.notifications);
+            }, 100);
+        }
+        }
+        
+        // Stop observing when both found
+        if (timelineFound && notifFound) {
+        observer.disconnect();
+        }
+    });
+    
+    // Start observing
+    observer.observe(document.body, {
+        childList: true,
+        subtree: true
+    });
+    
+    // Stop after 10 seconds to prevent memory leak
+    setTimeout(function() {
+        observer.disconnect();
+    }, 10000);
+    })();
+    </script>
 </body>
 </html>
 
